@@ -8,30 +8,34 @@ from pydantic import BaseSettings, BaseModel
 from scrap_optimization import ScrapOptimization
 
 
-
-class SimulationInfo(BaseModel):
-    id: int
-    steel_type: str
-    total_quantity:int
+class GeneralInfo(BaseModel):
     features:list
     target: str
     train_dataset: str
     scrap_dataset: str
     chemi_dataset:str
     ML_MODELS:str
+
+class SimulationInfo(BaseModel):
+    id: int
+    steel_type: str
+    total_quantity:int
     epochs: int
 
 class Settings(BaseSettings):
+    general_info:GeneralInfo
     simulations: list[SimulationInfo]
 
 
 
-settings = Settings.parse_file("settings.json").simulations
+settings = Settings.parse_file("settings.json")
+simulations = settings.simulations
+general_info = settings.general_info
 
 
 def run_simulation(simulation_settings):
     try:
-        so = ScrapOptimization(simulation_settings)
+        so = ScrapOptimization(general_info, simulation_settings)
         steel_chemi_df = pd.read_excel("assets/steel_chemi_components.xlsx")
         chemies = steel_chemi_df.loc[steel_chemi_df["name"] == float(simulation_settings.steel_type)]
         chemies = chemies[['C','Si','Mn','Cr','Mo','V']].values
@@ -45,7 +49,7 @@ def run_simulation(simulation_settings):
 if __name__ == "__main__":
     # print(settings)
     with ProcessPoolExecutor(max_workers=8) as executor:
-         executor.map(run_simulation, settings)
+         executor.map(run_simulation, simulations)
 
 
 

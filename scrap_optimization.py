@@ -25,13 +25,14 @@ chemi_names = ['C','Si','Mn','Cr','Mo','V']
 
 
 class ScrapOptimization:
-    def __init__(self, settings):
-        self.optimierung_id = settings.id
+    def __init__(self, general_info,  sim_settings):
+        self.optimierung_id = sim_settings.id
         params = {"optimierung_id": self.optimierung_id}
-        self.settings = settings
+        self.sim_settings = sim_settings
+        self.general_info = general_info
         self.experiment_info = {
-            "target": settings.target,
-            "features": settings.features
+            "target": general_info.target,
+            "features": general_info.features
         }
         
     def optimize(self, total_quantity:float, chemi_component:list, selected_stahl_name:str):
@@ -54,16 +55,16 @@ class ScrapOptimization:
         # giesserei_company_names = sorted(list(giesserei_company_names))
         
         # Load training data
-        df = pd.read_csv(self.settings.train_dataset)
-        df = df[self.settings.features]   # extract the used features from the dataframe
+        df = pd.read_csv(self.general_info.train_dataset)
+        df = df[self.general_info.features]   # extract the used features from the dataframe
         
         # convert the `Schrott` model to a pandas dataframe, and extract the `price` column
-        df_schrott = pd.read_excel(self.settings.scrap_dataset)
+        df_schrott = pd.read_csv(self.general_info.scrap_dataset)
         df_price = df_schrott["price"].to_numpy().astype(np.float32)# the number of schrott * the number of company
         company_count = int(df_schrott[["company"]].nunique())
         
         # load the chemical dataframe
-        df_chemi = pd.read_excel(self.settings.chemi_dataset)
+        df_chemi = pd.read_excel(self.general_info.chemi_dataset)
         df_chemi[chemi_names] = df_chemi[chemi_names].astype(np.float32)
         
         ############################# Optimization #############################
@@ -93,8 +94,8 @@ class ScrapOptimization:
         ############################## ML Settings ##############################
         xgb_model = xgb.Booster()
         # based on the selected steel name, load the corresponding ml model (1.2343, 1.2344,1.2379,1.3343)
-        xgb_model.load_model(os.path.join(self.settings.ML_MODELS, f'{selected_stahl_name}/XGB.json'))
-        ann_model = tf.keras.models.load_model(os.path.join(self.settings.ML_MODELS, f'{selected_stahl_name}/ANN'))
+        xgb_model.load_model(os.path.join(self.general_info.ML_MODELS, f'{selected_stahl_name}/XGB.json'))
+        ann_model = tf.keras.models.load_model(os.path.join(self.general_info.ML_MODELS, f'{selected_stahl_name}/ANN'))
         
         # function for xgb prediction
         def f_xgb(x):
@@ -119,8 +120,8 @@ class ScrapOptimization:
         # objective xgboost
         def objective(x, constant_column, kreislauf_column, legierung_column):
             t1 = np.dot(x, price_list)
-            print(f"{company_count=}")
-            print(f"x: {x.shape}")
+            # print(f"{company_count=}")
+            # print(f"x: {x.shape}")
             list_fremdschrotte = [sum(g) for g in list(grouper(x,company_count))]
             features = np.concatenate((constant_column, kreislauf_column, list_fremdschrotte, legierung_column))
             t2 = f_xgb(features)
@@ -267,7 +268,7 @@ class ScrapOptimization:
         fremd_schrotte = df_schrott[df_schrott["name"].str.startswith("F")].copy()
         is_negative = False
         
-        for i in range(self.settings.epochs):
+        for i in range(self.sim_settings.epochs):
             print("################# Optimizing for SLSQP iteration #################")
 
             x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,beq, x_start)
@@ -284,7 +285,7 @@ class ScrapOptimization:
             print("------- is negative", is_negative)
             if is_negative:
                 # return the message to the frontend
-                _data = f"Simulation:{self.settings.id}- The scrap provider does not have enough scrap to provide. Please try again."
+                _data = f"Simulation:{self.sim_settings.id}- The scrap provider does not have enough scrap to provide. Please try again."
                 # terminate the optimization process
                 print(_data)
                 break
@@ -322,11 +323,11 @@ class ScrapOptimization:
                     print("-----------------", _data)
                     
                 except Exception as e:
-                    print(f"Simulation:{self.settings.id}- Exception Happened: The database is not updated. Please try again.")
+                    print(f"Simulation:{self.sim_settings.id}- Exception Happened: The database is not updated. Please try again.")
                     print(traceback.format_exc())
                     
                 finally:
-                    with open(f'buy_list_{self.settings.id}.json', 'w') as f:
+                    with open(f'buy_list_{self.sim_settings.id}.json', 'w') as f:
                         json.dump(_data, f, indent=4)
                     # services.post(data=_data, target_path=config.TARGET_PATH.get("schrottoptimierung"))
         
