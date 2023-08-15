@@ -1,5 +1,7 @@
 import os
 import time
+import json
+import traceback
 
 
 import numpy as np
@@ -23,8 +25,8 @@ chemi_names = ['C','Si','Mn','Cr','Mo','V']
 
 
 class ScrapOptimization:
-    def __init__(self, optimierung_id, settings):
-        self.optimierung_id = optimierung_id
+    def __init__(self, settings):
+        self.optimierung_id = settings.id
         params = {"optimierung_id": self.optimierung_id}
         self.settings = settings
         self.experiment_info = {
@@ -103,7 +105,7 @@ class ScrapOptimization:
         def sum_t3_xgb(x):
             """return sum of three objectives"""
             summe = 0
-            quantity = np.array([sum(g) for g in list(grouper(company_count, x))])
+            quantity = np.array([sum(g) for g in list(grouper(x,company_count))])
             for q in quantity:
                 if q <= 10.0:
                     summe += 0.0
@@ -117,7 +119,9 @@ class ScrapOptimization:
         # objective xgboost
         def objective(x, constant_column, kreislauf_column, legierung_column):
             t1 = np.dot(x, price_list)
-            list_fremdschrotte = [sum(g) for g in list(grouper(company_count, x))]
+            print(f"{company_count=}")
+            print(f"x: {x.shape}")
+            list_fremdschrotte = [sum(g) for g in list(grouper(x,company_count))]
             features = np.concatenate((constant_column, kreislauf_column, list_fremdschrotte, legierung_column))
             t2 = f_xgb(features)
             t3 = sum_t3_xgb(x)
@@ -250,6 +254,7 @@ class ScrapOptimization:
         
         ############################## Opt Running ##############################
         opt_result = []
+        all_results = []
     
         constant_column, kreislauf_column, legierung_column, chemi_to_achieve_fremdschrotte = calculate_chemi_component(df, df_chemi,
                                                                                                                         constant_features_names,kreislauf_schrotte_names,legierung_schrotte_names,fremd_schrotte_names,total_chemi_to_achieve)
@@ -262,7 +267,7 @@ class ScrapOptimization:
         fremd_schrotte = df_schrott[df_schrott["name"].str.startswith("F")].copy()
         is_negative = False
         
-        while not is_negative:
+        for i in range(self.settings.epochs):
             print("################# Optimizing for SLSQP iteration #################")
 
             x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,beq, x_start)
@@ -279,9 +284,10 @@ class ScrapOptimization:
             print("------- is negative", is_negative)
             if is_negative:
                 # return the message to the frontend
-                _data = "The scrap provider does not have enough scrap to provide. Please try again."
+                _data = f"Simulation:{self.settings.id}- The scrap provider does not have enough scrap to provide. Please try again."
                 # terminate the optimization process
-                services.post(data=_data, target_path=config.TARGET_PATH.get("schrottoptimierung"))
+                print(_data)
+                break
             else:
                 # update and save the database of the schrott quantity
                 try:
@@ -296,8 +302,13 @@ class ScrapOptimization:
                     result_current['optimal_schrott_list'] = x_ann.tolist()
                     result_current['objective_values'] = objective_values
                     result_current['elapsed_time'] = elapsed_time_ann
+                    if opt_result:
+                        if sum(objective_values.values()) < sum(opt_result[0]["objective_values"].values()):
+                            opt_result[0] = result_current
+                    else:
+                        opt_result.append(result_current)
                     
-                    opt_result.append(result_current)
+                    all_results.append(result_current)
                     
                     _data = {
                         "optimierung_id": self.optimierung_id,
@@ -305,15 +316,19 @@ class ScrapOptimization:
                         # "optimal_schrott_list": opt_result['optimal_schrott_list'],
                         # "objective_values": opt_result['objective_values'],
                         # "elapsed_time": opt_result['elapsed_time'],
+                        "all_results": all_results,
                         "opt_result": opt_result,
                     }
                     print("-----------------", _data)
                     
                 except Exception as e:
-                    _data = "The database is not updated. Please try again."
+                    print(f"Simulation:{self.settings.id}- Exception Happened: The database is not updated. Please try again.")
+                    print(traceback.format_exc())
                     
                 finally:
-                    services.post(data=_data, target_path=config.TARGET_PATH.get("schrottoptimierung"))
+                    with open(f'buy_list_{self.settings.id}.json', 'w') as f:
+                        json.dump(_data, f, indent=4)
+                    # services.post(data=_data, target_path=config.TARGET_PATH.get("schrottoptimierung"))
         
 
 
