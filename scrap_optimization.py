@@ -306,10 +306,14 @@ class ScrapOptimization:
                     if opt_result:
                         if sum(objective_values.values()) < sum(opt_result[0]["objective_values"].values()):
                             opt_result[0] = result_current
+                            fremd_schrotte.to_csv(f"scrap_result_after_buy_{self.sim_settings.id}.csv")
                     else:
                         opt_result.append(result_current)
+                        fremd_schrotte.to_csv(f"scrap_result_after_buy_{self.sim_settings.id}.csv")
+
                     
                     all_results.append(result_current)
+
                     
                     _data = {
                         "optimierung_id": self.optimierung_id,
