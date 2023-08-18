@@ -1,15 +1,16 @@
-import simpy
-from time import sleep
-def func1(env):
-    sleep(1)
-    print("func running")
-    yield env.timeout(0)
+from time import perf_counter
+def calc(s):
+    seen = set()
+    for ch in s:
+        seen.add(ch)
 
+        if len(seen) == 26:
+            break
+    else:
+        return False
+    
+    return True
 
-
-env = simpy.Environment()
-env.process(func1(env))
-env.process(func1(env))
-env.process(func1(env))
-# env.process(func1)
-env.run()
+start = perf_counter()
+res = calc("qdcarlwydorfpvsjahyeojeuaywqgvlnzxggnthhljqgzjeoozmurjakxqgzbfqdyhnqrfqbvhmqpsprwaltkvwuecmzvmrlzrimqdcarlwydorfpvsjahyeojeuaywqgvlnzxggnthhljqgzjeoozmurjakxqgzbfqdyhnqrfqbvhmqpsprwaltkvwuecmzvmrlzrim")
+print(res, (perf_counter() - start)*1000)

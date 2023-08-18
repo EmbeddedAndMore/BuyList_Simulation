@@ -9,6 +9,7 @@ import pandas as pd
 import tensorflow as tf
 import xgboost as xgb
 import cobyqa
+import matplotlib.pyplot as plt
 from pdfo import pdfo
 from scipy.optimize import Bounds
 from scipy.optimize import minimize
@@ -68,7 +69,7 @@ class ScrapOptimization:
         df_chemi[chemi_names] = df_chemi[chemi_names].astype(np.float32)
         
         ############################# Optimization #############################
-        constant_features_names, schrotte_features_names, kreislauf_schrotte_names, legierung_schrotte_names,fremd_schrotte_names = df_columns_name(df)
+        constant_features_names, schrotte_features_names, kreislauf_schrotte_names, legierung_schrotte_names,fremd_schrotte_names = self.df_columns_name(df)
         
         length_fremdschrott = len(fremd_schrotte_names) 
         total_variable_length = length_fremdschrott * company_count  # the total number of variable parameters to optimize
@@ -79,7 +80,7 @@ class ScrapOptimization:
         x_lower = np.zeros(total_variable_length)  # the lower bound of the variable parameters
         x_upper = np.ones(total_variable_length) * total_quantity # the upper bound of the variable parameters
         
-        fremdschrotte_chemi_table = fremdschrott_chemi_table(df_chemi,fremd_schrotte_names,company_count)
+        fremdschrotte_chemi_table = self.fremdschrott_chemi_table(df_chemi,fremd_schrotte_names,company_count)
         
         # right hand side of equality constraints
         aeq = np.array(fremdschrotte_chemi_table)
@@ -114,7 +115,6 @@ class ScrapOptimization:
                     summe += 2.5 * (q-10) 
                 else:
                     summe += 100.0
-
                 return summe
 
         # objective xgboost
@@ -256,19 +256,28 @@ class ScrapOptimization:
         ############################## Opt Running ##############################
         opt_result = []
         all_results = []
+        supplier_quantity_hist = []
     
-        constant_column, kreislauf_column, legierung_column, chemi_to_achieve_fremdschrotte = calculate_chemi_component(df, df_chemi,
-                                                                                                                        constant_features_names,kreislauf_schrotte_names,legierung_schrotte_names,fremd_schrotte_names,total_chemi_to_achieve)
+        # constant_column, kreislauf_column, legierung_column, chemi_to_achieve_fremdschrotte = self.calculate_chemi_component(df, df_chemi,
+        #                                                                                                                 constant_features_names,kreislauf_schrotte_names,legierung_schrotte_names,fremd_schrotte_names,total_chemi_to_achieve)
         
-        beq = chemi_to_achieve_fremdschrotte
-        x_start = np.linalg.lstsq(aeq, beq, rcond=None)[0]
+        # beq = chemi_to_achieve_fremdschrotte
+        # x_start = np.linalg.lstsq(aeq, beq, rcond=None)[0]
         
         
         # check if the optimal schrott list is valid
         fremd_schrotte = df_schrott[df_schrott["name"].str.startswith("F")].copy()
         is_negative = False
+        supplier_quantity_hist.append(fremd_schrotte["quantity"].to_list())
+        
         
         for i in range(self.sim_settings.epochs):
+
+            constant_column, kreislauf_column, legierung_column, chemi_to_achieve_fremdschrotte = self.calculate_chemi_component(df, df_chemi,
+                                                                                                                        constant_features_names,kreislauf_schrotte_names,legierung_schrotte_names,fremd_schrotte_names,total_chemi_to_achieve)
+        
+            beq = chemi_to_achieve_fremdschrotte
+            x_start = np.linalg.lstsq(aeq, beq, rcond=None)[0]
             print("################# Optimizing for SLSQP iteration #################")
 
             x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,beq, x_start)
@@ -288,11 +297,10 @@ class ScrapOptimization:
                 _data = f"Simulation:{self.sim_settings.id}- The scrap provider does not have enough scrap to provide. Please try again."
                 # terminate the optimization process
                 print(_data)
-                break
             else:
                 # update and save the database of the schrott quantity
                 try:
-
+                    supplier_quantity_hist.append(fremd_schrotte["quantity"].to_list())
                     # Schrott.objects.filter(name__startswith="F").update(quantity=fremd_schrotte["quantity"].to_list())
                     result_current = {}
                     
@@ -324,7 +332,7 @@ class ScrapOptimization:
                         "all_results": all_results,
                         "opt_result": opt_result,
                     }
-                    print("-----------------", _data)
+                    # print("-----------------", _data)
                     
                 except Exception as e:
                     print(f"Simulation:{self.sim_settings.id}- Exception Happened: The database is not updated. Please try again.")
@@ -334,81 +342,89 @@ class ScrapOptimization:
                     with open(f'buy_list_{self.sim_settings.id}.json', 'w') as f:
                         json.dump(_data, f, indent=4)
                     # services.post(data=_data, target_path=config.TARGET_PATH.get("schrottoptimierung"))
+        for idx, remote_scrap in enumerate(supplier_quantity_hist[0]):
+            values = []
+            for i in range(len(supplier_quantity_hist)):
+                values.append(supplier_quantity_hist[i][idx])
+            plt.plot(range(len(supplier_quantity_hist)), values, label=f"F{idx+1}")
+            
+        plt.legend()
+        plt.show()
+
+    def fremdschrott_chemi_table(self, df_chemi, fremd_schrotte_names,company_count):
+        # construct the chemical table
+        # assume that every company's chemical elements for every schrott is identical
+        df_chemi_fremdschrott= (df_chemi[chemi_names].iloc[:len(fremd_schrotte_names)])
+        fremdschrott_chemi = df_chemi_fremdschrott.T 
+        n_times = company_count - 1
+        temp_dfs = []
         
+        for col_name in fremdschrott_chemi.columns:
+            temp_df = fremdschrott_chemi[[col_name]].copy()
+            for i in range(1, n_times+1):
+                temp_df[f'{col_name}{i}'] = fremdschrott_chemi[col_name]
+            temp_dfs.append(temp_df)
 
-
-def fremdschrott_chemi_table(df_chemi, fremd_schrotte_names,company_count):
-    # construct the chemical table
-    # assume that every company's chemical elements for every schrott is identical
-    df_chemi_fremdschrott= (df_chemi[chemi_names].iloc[:len(fremd_schrotte_names)])
-    fremdschrott_chemi = df_chemi_fremdschrott.T 
-    n_times = company_count - 1
-    temp_dfs = []
-    
-    for col_name in fremdschrott_chemi.columns:
-        temp_df = fremdschrott_chemi[[col_name]].copy()
-        for i in range(1, n_times+1):
-            temp_df[f'{col_name}{i}'] = fremdschrott_chemi[col_name]
-        temp_dfs.append(temp_df)
-
-    fremdschrotte_chemi_table = pd.concat(temp_dfs, axis=1) / 100.0
-    
-    return fremdschrotte_chemi_table
+        fremdschrotte_chemi_table = pd.concat(temp_dfs, axis=1) / 100.0
+        
+        return fremdschrotte_chemi_table
 
 
 
-def df_columns_name(df):
-    """
-    return constant features, schrotte features, kreislauf schrotte, legierung schrotte
-    """
-    features_columns = df.columns.tolist()
-    # remove_columns = ['HeatID', 'HeatOrderID','Energy']
-    # features_columns = [x for x in columns if x not in remove_columns]
-    
-    # constant process parameter, start with "Feature"
-    constant_features_names = [x for x in features_columns if "Feature" in x]
-    
-    #"K" means Kreislauf, "L" means Legierungen, "F" means Fremdschrotte, we only want to optimize "F"
-    schrotte_features_names = [x for x in features_columns if "Feature" not in x]
-    
-    # schrotte name for Kreislauf
-    kreislauf_schrotte_names = [x for x in features_columns if "K" in x]
-    
-    # schrotte name for legierung
-    legierung_schrotte_names = [x for x in features_columns if "L" in x]
-    
-    # schrotte name for Fremdschrotte
-    fremd_schrotte_names = [x for x in features_columns if "F" in x and len(x) < 4]
-    
-    return constant_features_names, schrotte_features_names, kreislauf_schrotte_names,legierung_schrotte_names,fremd_schrotte_names
+    def df_columns_name(self, df):
+        """
+        return constant features, schrotte features, kreislauf schrotte, legierung schrotte
+        """
+        features_columns = df.columns.tolist()
+        # remove_columns = ['HeatID', 'HeatOrderID','Energy']
+        # features_columns = [x for x in columns if x not in remove_columns]
+        
+        # constant process parameter, start with "Feature"
+        constant_features_names = [x for x in features_columns if "Feature" in x]
+        
+        #"K" means Kreislauf, "L" means Legierungen, "F" means Fremdschrotte, we only want to optimize "F"
+        schrotte_features_names = [x for x in features_columns if "Feature" not in x]
+        
+        # schrotte name for Kreislauf
+        kreislauf_schrotte_names = [x for x in features_columns if "K" in x]
+        
+        # schrotte name for legierung
+        legierung_schrotte_names = [x for x in features_columns if "L" in x]
+        
+        # schrotte name for Fremdschrotte
+        fremd_schrotte_names = [x for x in features_columns if "F" in x and len(x) < 4]
+        
+        return constant_features_names, schrotte_features_names, kreislauf_schrotte_names,legierung_schrotte_names,fremd_schrotte_names
 
-def calculate_chemi_component(df, df_chemi,
-                              constant_features_names,
-                              kreislauf_schrotte_names,
-                              legierung_schrotte_names,
-                              fremd_schrotte_names,
-                              total_chemi_to_achieve):
-    
-    """
-    return the randomly chosen row, and its constant column, kreislauf column and 
-    legierung column, use them to return the chemical component of fremdschrotte column
-    """
-    df_random_row = df.sample()
-    
-    # calculate the constant features
-    constant_column = (df_random_row[constant_features_names].values[0]).astype(np.float32)
-    
-    # calculate the chemical component for kreislauf
-    kreislauf_column = (df_random_row[kreislauf_schrotte_names].values[0]).astype(np.float32)
-    kreislauf_chemical_table = df_chemi[chemi_names].iloc[len(kreislauf_schrotte_names)-1:]
-    chemi_component_kreislauf = (np.dot(kreislauf_column, kreislauf_chemical_table) /100.0).astype(np.float32)
-    
-    # calculate the chemical component for legierungen
-    legierung_column = (df_random_row[legierung_schrotte_names].values[0]).astype(np.float32)
-    legierung_chemical_table = df_chemi[chemi_names].iloc[len(fremd_schrotte_names):len(kreislauf_schrotte_names)-1]
-    chemi_component_legierung = (np.dot(legierung_column, legierung_chemical_table) /100.0).astype(np.float32)
-    
-    # calculate the chemical compoent for fremdschrotte
-    chemi_to_achieve_fremdschrotte = (np.abs(total_chemi_to_achieve - chemi_component_kreislauf - chemi_component_legierung)).astype(np.float32)
-    
-    return constant_column, kreislauf_column, legierung_column, chemi_to_achieve_fremdschrotte
+    def calculate_chemi_component(self, df, df_chemi,
+                                constant_features_names,
+                                kreislauf_schrotte_names,
+                                legierung_schrotte_names,
+                                fremd_schrotte_names,
+                                total_chemi_to_achieve):
+        
+        """
+        return the randomly chosen row, and its constant column, kreislauf column and 
+        legierung column, use them to return the chemical component of fremdschrotte column
+        """
+        df_random_row = df.sample()
+        
+        # calculate the constant features
+        selected_feature = df.iloc[[self.sim_settings.feature]]
+        constant_column = (selected_feature[constant_features_names].values[0]).astype(np.float32)
+        print(f"{constant_column=}")
+        
+        # calculate the chemical component for kreislauf
+        kreislauf_column = (df_random_row[kreislauf_schrotte_names].values[0]).astype(np.float32)
+        kreislauf_chemical_table = df_chemi[chemi_names].iloc[len(kreislauf_schrotte_names)-1:]
+        chemi_component_kreislauf = (np.dot(kreislauf_column, kreislauf_chemical_table) /100.0).astype(np.float32)
+        
+        # calculate the chemical component for legierungen
+        legierung_column = (df_random_row[legierung_schrotte_names].values[0]).astype(np.float32)
+        legierung_chemical_table = df_chemi[chemi_names].iloc[len(fremd_schrotte_names):len(kreislauf_schrotte_names)-1]
+        chemi_component_legierung = (np.dot(legierung_column, legierung_chemical_table) /100.0).astype(np.float32)
+        
+        # calculate the chemical compoent for fremdschrotte
+        chemi_to_achieve_fremdschrotte = (np.abs(total_chemi_to_achieve - chemi_component_kreislauf - chemi_component_legierung)).astype(np.float32)
+        
+        return constant_column, kreislauf_column, legierung_column, chemi_to_achieve_fremdschrotte

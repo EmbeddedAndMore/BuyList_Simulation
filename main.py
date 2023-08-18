@@ -21,6 +21,7 @@ class SimulationInfo(BaseModel):
     steel_type: str
     total_quantity:int
     epochs: int
+    feature: int
 
 class Settings(BaseSettings):
     general_info:GeneralInfo
@@ -47,10 +48,10 @@ def run_simulation(simulation_settings):
 
 
 if __name__ == "__main__":
-    # print(settings)
-    with ProcessPoolExecutor(max_workers=8) as executor:
-         executor.map(run_simulation, simulations)
-
+    # # print(settings)
+    # with ProcessPoolExecutor(max_workers=8) as executor:
+    #      executor.map(run_simulation, simulations)
+    run_simulation(simulations[0])
 
 
         
