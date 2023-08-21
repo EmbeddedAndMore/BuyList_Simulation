@@ -15,6 +15,7 @@ class GeneralInfo(BaseModel):
     scrap_dataset: str
     chemi_dataset:str
     ML_MODELS:str
+    violation_threshold:float
 
 class SimulationInfo(BaseModel):
     id: int
@@ -49,9 +50,9 @@ def run_simulation(simulation_settings):
 
 if __name__ == "__main__":
     # # print(settings)
-    # with ProcessPoolExecutor(max_workers=8) as executor:
-    #      executor.map(run_simulation, simulations)
-    run_simulation(simulations[0])
+    with ProcessPoolExecutor(max_workers=8) as executor:
+         executor.map(run_simulation, simulations)
+    # run_simulation(simulations[0])
 
 
         

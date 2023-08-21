@@ -6,7 +6,8 @@
         "train_dataset": "assets/df_12379.csv",
         "scrap_dataset": "assets/scrap2.csv",
         "chemi_dataset": "assets/chemi.xlsx",
-        "ML_MODELS": "ml_models"
+        "ML_MODELS": "ml_models",
+        "violation_threshold":0.2
     },
     "simulations":
     [
@@ -14,7 +15,53 @@
             "id":1,
             "steel_type":"1.2379",
             "total_quantity": 2000,
-            "epochs": 100,
+            "epochs": 60,
+            "feature": 1
+        },
+        {
+            "id":2,
+            "steel_type":"1.2379",
+            "total_quantity": 2000,
+            "epochs": 60,
+            "feature": 1
+        },
+        {
+            "id":3,
+            "steel_type":"1.2379",
+            "total_quantity": 2000,
+            "epochs": 60,
+            "feature": 1
+        },
+        {
+            "id":4,
+            "steel_type":"1.2379",
+            "total_quantity": 2000,
+            "epochs": 60,
+            "feature": 1
+        },
+        {
+            "id":5,
+            "steel_type":"1.2379",
+            "total_quantity": 2000,
+            "epochs": 60,
+            "feature": 1
+        },{
+            "id":6,
+            "steel_type":"1.2379",
+            "total_quantity": 2000,
+            "epochs": 60,
+            "feature": 1
+        },{
+            "id":7,
+            "steel_type":"1.2379",
+            "total_quantity": 2000,
+            "epochs": 60,
+            "feature": 1
+        },{
+            "id":8,
+            "steel_type":"1.2379",
+            "total_quantity": 2000,
+            "epochs": 60,
             "feature": 1
         }
     ]

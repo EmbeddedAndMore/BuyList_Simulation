@@ -265,7 +265,7 @@ class ScrapOptimization:
             print("################# Optimizing for SLSQP iteration #################")
             
             # TODO: add the bounds here
-            bounds = ...
+            bounds = Bounds([0.0]*total_variable_length, fremd_schrotte["quantity"].to_list())
             x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,beq, x_start, bounds)
             print("################### original fremd schrotte ###################")
             print(fremd_schrotte["quantity"].to_list())
@@ -277,12 +277,14 @@ class ScrapOptimization:
             
             # TODO: here should be the termination condition instead negative
             # if np.sum(np.abs(c_violation_ann)) / np.sum(beq) > 0.2:  first try 20%
-            is_negative = any(fremd_schrotte["quantity"] < 0)
-            print("fremd_schrotte", fremd_schrotte["quantity"].to_list())
-            print("------- is negative", is_negative)
-            if is_negative:
+            # is_negative = any(fremd_schrotte["quantity"] < 0)
+            # print("fremd_schrotte", fremd_schrotte["quantity"].to_list())
+            # print("------- is negative", is_negative)
+            # if is_negative:
+            violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
+            if violence > self.general_info.violation_threshold:
                 # return the message to the frontend
-                _data = f"Simulation:{self.sim_settings.id}- The scrap provider does not have enough scrap to provide. Please try again."
+                _data = f"Simulation:{self.sim_settings.id}- violation is more than threshold:  {violence}>{self.general_info.violation_threshold}. Please try again."
                 # terminate the optimization process
                 print(_data)
             else:
@@ -322,14 +324,16 @@ class ScrapOptimization:
                 finally:
                     with open(f'buy_list_{self.sim_settings.id}.json', 'w') as f:
                         json.dump(_data, f, indent=4)
+
         for idx, remote_scrap in enumerate(supplier_quantity_hist[0]):
             values = []
             for i in range(len(supplier_quantity_hist)):
                 values.append(supplier_quantity_hist[i][idx])
             plt.plot(range(len(supplier_quantity_hist)), values, label=f"F{idx+1}")
-            
+        
+        plt.title(f"ID: {self.sim_settings.id}, Total quantity: {self.sim_settings.total_quantity}")
         plt.legend()
-        plt.savefig(f"{datetime.now().strftime('%Y%m%d-%H%M%S')}.png")
+        plt.savefig(f"sim_output/simulation_output_{self.sim_settings.id}.png")
         plt.show()
 
     def fremdschrott_chemi_table(self, df_chemi, fremd_schrotte_names,company_count):
