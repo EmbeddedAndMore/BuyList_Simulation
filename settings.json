@@ -14,7 +14,7 @@
             "id":1,
             "steel_type":"1.2379",
             "total_quantity": 2000,
-            "epochs": 20,
+            "epochs": 100,
             "feature": 1
         }
     ]

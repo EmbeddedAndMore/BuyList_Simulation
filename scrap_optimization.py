@@ -17,10 +17,10 @@ from scipy.optimize import minimize
 from more_itertools import grouper
 
 
-from utils import config
-from utils.transform import Input, Output, Excel, get_experiments_url, get_optimierung_url, get_predict_url, get_experiments_dataset_url, \
-    get_file_url, distribution_density, get_evaluation_url, Histogram
-from utils import services
+# from utils import config
+# from utils.transform import Input, Output, Excel, get_experiments_url, get_optimierung_url, get_predict_url, get_experiments_dataset_url, \
+#     get_file_url, distribution_density, get_evaluation_url, Histogram
+# from utils import services
 
 
 chemi_names = ['C','Si','Mn','Cr','Mo','V']
@@ -86,8 +86,9 @@ class ScrapOptimization:
         # right hand side of equality constraints
         aeq = np.array(fremdschrotte_chemi_table)
         
-        # bounds of scipy constraints
-        bounds = Bounds([0.0]*total_variable_length, [max(total_chemi_to_achieve)]*total_variable_length)
+        # bounds of scipy constraints 
+        # TODO: the actual quantity of fremdschrott available quantity in the market, should be remove to the loop
+        # bounds = Bounds([0.0]*total_variable_length, [max(total_chemi_to_achieve)]*total_variable_length)
         
         # max iteration 
         max_iter = 300
@@ -223,7 +224,8 @@ class ScrapOptimization:
 
             return res_pdfo.x, res_pdfo.fun, c_violation, elapsed_time_pdfo, res_pdfo.method
         
-        def optimize_grad(constant_column, kreislauf_column, legierung_column, beq, x_start):
+        # TODO: add the bounds
+        def optimize_grad(constant_column, kreislauf_column, legierung_column, beq, x_start, bounds):
             # Wrap the objective and gradient functions with lambda functions
             
             wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
@@ -251,6 +253,7 @@ class ScrapOptimization:
             
             end = time.time()
             c_violation = (np.dot(aeq, result.x) - beq).tolist()
+            
             elapsed_time = end - start
             return result.x, result.fun, c_violation, elapsed_time, objective_values
         
@@ -280,16 +283,21 @@ class ScrapOptimization:
             beq = chemi_to_achieve_fremdschrotte
             x_start = np.linalg.lstsq(aeq, beq, rcond=None)[0]
             print("################# Optimizing for SLSQP iteration #################")
-
-            x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,beq, x_start)
+            
+            # TODO: add the bounds here
+            bounds = ...
+            x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,beq, x_start, bounds)
             print("################### original fremd schrotte ###################")
             print(fremd_schrotte["quantity"].to_list())
             # substract the optimal schrott list from the total quantity
-            # check ann result if greater than 10 keep it other wise set it to 0
+            # TODO:remove this condition
             x_ann = np.where(x_ann > 10, x_ann, 0)
             print("############### ANN result #################", x_ann)
             fremd_schrotte.loc[:, "quantity"] = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
             # check if any value is negative
+            
+            # TODO: here should be the termination condition instead negative
+            # if np.sum(np.abs(c_violation_ann)) / np.sum(beq) > 0.2:  first try 20%
             is_negative = any(fremd_schrotte["quantity"] < 0)
             print("fremd_schrotte", fremd_schrotte["quantity"].to_list())
             print("------- is negative", is_negative)
