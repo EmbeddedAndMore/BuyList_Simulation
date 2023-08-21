@@ -17,19 +17,12 @@ from scipy.optimize import minimize
 from more_itertools import grouper
 
 
-# from utils import config
-# from utils.transform import Input, Output, Excel, get_experiments_url, get_optimierung_url, get_predict_url, get_experiments_dataset_url, \
-#     get_file_url, distribution_density, get_evaluation_url, Histogram
-# from utils import services
-
-
 chemi_names = ['C','Si','Mn','Cr','Mo','V']
 
 
 class ScrapOptimization:
     def __init__(self, general_info,  sim_settings):
         self.optimierung_id = sim_settings.id
-        params = {"optimierung_id": self.optimierung_id}
         self.sim_settings = sim_settings
         self.general_info = general_info
         self.experiment_info = {
@@ -50,19 +43,13 @@ class ScrapOptimization:
         print(chemi_component)
         total_chemi_to_achieve = total_quantity * chemi_component
         
-        # load the original training dataframe, chemical dataframe and price dataframe from database
-        
-        # get the giesserei company names
-        # giesserei_company_names = GiessereiSchrott.objects.values_list("giesserei", flat=True).distinct()
-        # giesserei_company_names = sorted(list(giesserei_company_names))
-        
         # Load training data
         df = pd.read_csv(self.general_info.train_dataset)
         df = df[self.general_info.features]   # extract the used features from the dataframe
         
         # convert the `Schrott` model to a pandas dataframe, and extract the `price` column
         df_schrott = pd.read_csv(self.general_info.scrap_dataset)
-        df_price = df_schrott["price"].to_numpy().astype(np.float32)# the number of schrott * the number of company
+        df_price = df_schrott["price"].to_numpy().astype(np.float32)
         company_count = int(df_schrott[["company"]].nunique())
         
         # load the chemical dataframe
@@ -261,13 +248,6 @@ class ScrapOptimization:
         opt_result = []
         all_results = []
         supplier_quantity_hist = []
-    
-        # constant_column, kreislauf_column, legierung_column, chemi_to_achieve_fremdschrotte = self.calculate_chemi_component(df, df_chemi,
-        #                                                                                                                 constant_features_names,kreislauf_schrotte_names,legierung_schrotte_names,fremd_schrotte_names,total_chemi_to_achieve)
-        
-        # beq = chemi_to_achieve_fremdschrotte
-        # x_start = np.linalg.lstsq(aeq, beq, rcond=None)[0]
-        
         
         # check if the optimal schrott list is valid
         fremd_schrotte = df_schrott[df_schrott["name"].str.startswith("F")].copy()
@@ -294,7 +274,6 @@ class ScrapOptimization:
             x_ann = np.where(x_ann > 10, x_ann, 0)
             print("############### ANN result #################", x_ann)
             fremd_schrotte.loc[:, "quantity"] = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
-            # check if any value is negative
             
             # TODO: here should be the termination condition instead negative
             # if np.sum(np.abs(c_violation_ann)) / np.sum(beq) > 0.2:  first try 20%
@@ -310,7 +289,6 @@ class ScrapOptimization:
                 # update and save the database of the schrott quantity
                 try:
                     supplier_quantity_hist.append(fremd_schrotte["quantity"].to_list())
-                    # Schrott.objects.filter(name__startswith="F").update(quantity=fremd_schrotte["quantity"].to_list())
                     result_current = {}
                     
                     optimal_value = objective(x_ann, constant_column, kreislauf_column, legierung_column)
@@ -334,14 +312,8 @@ class ScrapOptimization:
                     
                     _data = {
                         "optimierung_id": self.optimierung_id,
-                        # "optimal_value": opt_result['optimal_value'],
-                        # "optimal_schrott_list": opt_result['optimal_schrott_list'],
-                        # "objective_values": opt_result['objective_values'],
-                        # "elapsed_time": opt_result['elapsed_time'],
-                        "all_results": all_results,
                         "opt_result": opt_result,
                     }
-                    # print("-----------------", _data)
                     
                 except Exception as e:
                     print(f"Simulation:{self.sim_settings.id}- Exception Happened: The database is not updated. Please try again.")
@@ -350,7 +322,6 @@ class ScrapOptimization:
                 finally:
                     with open(f'buy_list_{self.sim_settings.id}.json', 'w') as f:
                         json.dump(_data, f, indent=4)
-                    # services.post(data=_data, target_path=config.TARGET_PATH.get("schrottoptimierung"))
         for idx, remote_scrap in enumerate(supplier_quantity_hist[0]):
             values = []
             for i in range(len(supplier_quantity_hist)):
