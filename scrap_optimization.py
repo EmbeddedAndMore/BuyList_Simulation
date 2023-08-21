@@ -2,6 +2,7 @@ import os
 import time
 import json
 import traceback
+from datetime import datetime
 
 
 import numpy as np
@@ -349,6 +350,7 @@ class ScrapOptimization:
             plt.plot(range(len(supplier_quantity_hist)), values, label=f"F{idx+1}")
             
         plt.legend()
+        plt.savefig(f"{datetime.now().strftime('%Y%m%d-%H%M%S')}.png")
         plt.show()
 
     def fremdschrott_chemi_table(self, df_chemi, fremd_schrotte_names,company_count):
