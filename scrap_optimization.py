@@ -251,7 +251,7 @@ class ScrapOptimization:
         
         # check if the optimal schrott list is valid
         fremd_schrotte = df_schrott[df_schrott["name"].str.startswith("F")].copy()
-        is_negative = False
+
         supplier_quantity_hist.append(fremd_schrotte["quantity"].to_list())
         
         
@@ -264,23 +264,16 @@ class ScrapOptimization:
             x_start = np.linalg.lstsq(aeq, beq, rcond=None)[0]
             print("################# Optimizing for SLSQP iteration #################")
             
-            # TODO: add the bounds here
             bounds = Bounds([0.0]*total_variable_length, fremd_schrotte["quantity"].to_list())
             x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,beq, x_start, bounds)
             print("################### original fremd schrotte ###################")
             print(fremd_schrotte["quantity"].to_list())
-            # substract the optimal schrott list from the total quantity
-            # TODO:remove this condition
-            x_ann = np.where(x_ann > 10, x_ann, 0)
+
+            # x_ann = np.where(x_ann > 10, x_ann, 0)
             print("############### ANN result #################", x_ann)
             fremd_schrotte.loc[:, "quantity"] = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
             
-            # TODO: here should be the termination condition instead negative
-            # if np.sum(np.abs(c_violation_ann)) / np.sum(beq) > 0.2:  first try 20%
-            # is_negative = any(fremd_schrotte["quantity"] < 0)
-            # print("fremd_schrotte", fremd_schrotte["quantity"].to_list())
-            # print("------- is negative", is_negative)
-            # if is_negative:
+
             violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
             if violence > self.general_info.violation_threshold:
                 # return the message to the frontend
@@ -361,8 +354,6 @@ class ScrapOptimization:
         return constant features, schrotte features, kreislauf schrotte, legierung schrotte
         """
         features_columns = df.columns.tolist()
-        # remove_columns = ['HeatID', 'HeatOrderID','Energy']
-        # features_columns = [x for x in columns if x not in remove_columns]
         
         # constant process parameter, start with "Feature"
         constant_features_names = [x for x in features_columns if "Feature" in x]

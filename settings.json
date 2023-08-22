@@ -17,49 +17,52 @@
             "total_quantity": 2000,
             "epochs": 60,
             "feature": 1
-        },
+        }
         {
-            "id":2,
-            "steel_type":"1.2379",
-            "total_quantity": 2000,
-            "epochs": 60,
-            "feature": 1
-        },
-        {
-            "id":3,
-            "steel_type":"1.2379",
+            "id": 2,
+            "steel_type": "1.2379",
             "total_quantity": 2000,
             "epochs": 60,
             "feature": 1
         },
         {
-            "id":4,
-            "steel_type":"1.2379",
+            "id": 3,
+            "steel_type": "1.2379",
             "total_quantity": 2000,
             "epochs": 60,
             "feature": 1
         },
         {
-            "id":5,
-            "steel_type":"1.2379",
+            "id": 4,
+            "steel_type": "1.2379",
             "total_quantity": 2000,
             "epochs": 60,
             "feature": 1
-        },{
-            "id":6,
-            "steel_type":"1.2379",
+        },
+        {
+            "id": 5,
+            "steel_type": "1.2379",
             "total_quantity": 2000,
             "epochs": 60,
             "feature": 1
-        },{
-            "id":7,
-            "steel_type":"1.2379",
+        },
+        {
+            "id": 6,
+            "steel_type": "1.2379",
             "total_quantity": 2000,
             "epochs": 60,
             "feature": 1
-        },{
-            "id":8,
-            "steel_type":"1.2379",
+        },
+        {
+            "id": 7,
+            "steel_type": "1.2379",
+            "total_quantity": 2000,
+            "epochs": 60,
+            "feature": 1
+        },
+        {
+            "id": 8,
+            "steel_type": "1.2379",
             "total_quantity": 2000,
             "epochs": 60,
             "feature": 1
