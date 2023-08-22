@@ -17,9 +17,6 @@ from scipy.optimize import minimize
 from more_itertools import grouper
 
 
-chemi_names = ['C','Si','Mn','Cr','Mo','V']
-
-
 class ScrapOptimization:
     def __init__(self, general_info,  sim_settings):
         self.optimierung_id = sim_settings.id
@@ -53,8 +50,8 @@ class ScrapOptimization:
         company_count = int(df_schrott[["company"]].nunique())
         
         # load the chemical dataframe
-        df_chemi = pd.read_excel(self.general_info.chemi_dataset)
-        df_chemi[chemi_names] = df_chemi[chemi_names].astype(np.float32)
+        df_chemi = pd.read_csv(self.general_info.chemi_dataset)
+        df_chemi[self.general_info.chemi_names] = df_chemi[self.general_info.chemi_names].astype(np.float32)
         
         ############################# Optimization #############################
         constant_features_names, schrotte_features_names, kreislauf_schrotte_names, legierung_schrotte_names,fremd_schrotte_names = self.df_columns_name(df)
@@ -264,7 +261,7 @@ class ScrapOptimization:
             x_start = np.linalg.lstsq(aeq, beq, rcond=None)[0]
             print("################# Optimizing for SLSQP iteration #################")
             
-            bounds = Bounds([0.0]*total_variable_length, fremd_schrotte["quantity"].to_list())
+            bounds = Bounds([0.0]*total_variable_length, fremd_schrotte["quantity"].to_list(), keep_feasible=True)
             x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,beq, x_start, bounds)
             print("################### original fremd schrotte ###################")
             print(fremd_schrotte["quantity"].to_list())
@@ -273,8 +270,11 @@ class ScrapOptimization:
             print("############### ANN result #################", x_ann)
             fremd_schrotte.loc[:, "quantity"] = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
             
+            print("################## violated constraints ##################")
+            print(c_violation_ann)
 
             violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
+            #violence = np.sum(c_violation_ann) / np.sum(beq)
             if violence > self.general_info.violation_threshold:
                 # return the message to the frontend
                 _data = f"Simulation:{self.sim_settings.id}- violation is more than threshold:  {violence}>{self.general_info.violation_threshold}. Please try again."
@@ -332,7 +332,7 @@ class ScrapOptimization:
     def fremdschrott_chemi_table(self, df_chemi, fremd_schrotte_names,company_count):
         # construct the chemical table
         # assume that every company's chemical elements for every schrott is identical
-        df_chemi_fremdschrott= (df_chemi[chemi_names].iloc[:len(fremd_schrotte_names)])
+        df_chemi_fremdschrott= (df_chemi[self.general_info.chemi_names].iloc[:len(fremd_schrotte_names)])
         fremdschrott_chemi = df_chemi_fremdschrott.T 
         n_times = company_count - 1
         temp_dfs = []
@@ -392,12 +392,12 @@ class ScrapOptimization:
         
         # calculate the chemical component for kreislauf
         kreislauf_column = (df_random_row[kreislauf_schrotte_names].values[0]).astype(np.float32)
-        kreislauf_chemical_table = df_chemi[chemi_names].iloc[len(kreislauf_schrotte_names)-1:]
+        kreislauf_chemical_table = df_chemi[self.general_info.chemi_names].iloc[len(kreislauf_schrotte_names)-1:]
         chemi_component_kreislauf = (np.dot(kreislauf_column, kreislauf_chemical_table) /100.0).astype(np.float32)
         
         # calculate the chemical component for legierungen
         legierung_column = (df_random_row[legierung_schrotte_names].values[0]).astype(np.float32)
-        legierung_chemical_table = df_chemi[chemi_names].iloc[len(fremd_schrotte_names):len(kreislauf_schrotte_names)-1]
+        legierung_chemical_table = df_chemi[self.general_info.chemi_names].iloc[len(fremd_schrotte_names):len(kreislauf_schrotte_names)-1]
         chemi_component_legierung = (np.dot(legierung_column, legierung_chemical_table) /100.0).astype(np.float32)
         
         # calculate the chemical compoent for fremdschrotte

@@ -11,6 +11,7 @@ from scrap_optimization import ScrapOptimization
 class GeneralInfo(BaseModel):
     features:list
     target: str
+    chemi_names: list
     train_dataset: str
     scrap_dataset: str
     chemi_dataset:str
@@ -38,7 +39,7 @@ general_info = settings.general_info
 def run_simulation(simulation_settings):
     try:
         so = ScrapOptimization(general_info, simulation_settings)
-        steel_chemi_df = pd.read_excel("assets/steel_chemi_components.xlsx")
+        steel_chemi_df = pd.read_csv("assets/steel_chemi_components.csv")
         chemies = steel_chemi_df.loc[steel_chemi_df["name"] == float(simulation_settings.steel_type)]
         chemies = chemies[['C','Si','Mn','Cr','Mo','V']].values
         chemi_component = [float(i) for i in chemies[0]] 
