@@ -67,12 +67,8 @@ class ScrapOptimization:
         
         fremdschrotte_chemi_table = self.fremdschrott_chemi_table(df_chemi,fremd_schrotte_names,company_count)
         
-        # right hand side of equality constraints
+        # left hand side of equality constraints
         aeq = np.array(fremdschrotte_chemi_table)
-        
-        # bounds of scipy constraints 
-        # TODO: the actual quantity of fremdschrott available quantity in the market, should be remove to the loop
-        # bounds = Bounds([0.0]*total_variable_length, [max(total_chemi_to_achieve)]*total_variable_length)
         
         # max iteration 
         max_iter = 300
@@ -208,7 +204,6 @@ class ScrapOptimization:
 
             return res_pdfo.x, res_pdfo.fun, c_violation, elapsed_time_pdfo, res_pdfo.method
         
-        # TODO: add the bounds
         def optimize_grad(constant_column, kreislauf_column, legierung_column, beq, x_start, bounds):
             # Wrap the objective and gradient functions with lambda functions
             
@@ -248,38 +243,30 @@ class ScrapOptimization:
         
         # check if the optimal schrott list is valid
         fremd_schrotte = df_schrott[df_schrott["name"].str.startswith("F")].copy()
-        is_negative = False
         supplier_quantity_hist.append(fremd_schrotte["quantity"].to_list())
         
         
         for i in range(self.sim_settings.epochs):
 
             constant_column, kreislauf_column, legierung_column, chemi_to_achieve_fremdschrotte = self.calculate_chemi_component(df, df_chemi,
-                                                                                                                        constant_features_names,kreislauf_schrotte_names,legierung_schrotte_names,fremd_schrotte_names,total_chemi_to_achieve)
-        
+            constant_features_names,kreislauf_schrotte_names,legierung_schrotte_names,fremd_schrotte_names,total_chemi_to_achieve)
+
+            # right hand side of equality constraint
             beq = chemi_to_achieve_fremdschrotte
             x_start = np.linalg.lstsq(aeq, beq, rcond=None)[0]
             print("################# Optimizing for SLSQP iteration #################")
             
-            # TODO: add the bounds here
+            # every simulation updates the upper bounds
             bounds = Bounds([0.0]*total_variable_length, fremd_schrotte["quantity"].to_list())
             x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,beq, x_start, bounds)
             print("################### original fremd schrotte ###################")
             print(fremd_schrotte["quantity"].to_list())
             # substract the optimal schrott list from the total quantity
-            # TODO:remove this condition
-            x_ann = np.where(x_ann > 10, x_ann, 0)
+
             print("############### ANN result #################", x_ann)
             fremd_schrotte.loc[:, "quantity"] = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
             
-            # TODO: here should be the termination condition instead negative
-            # if np.sum(np.abs(c_violation_ann)) / np.sum(beq) > 0.2:  first try 20%
-            # is_negative = any(fremd_schrotte["quantity"] < 0)
-            # print("fremd_schrotte", fremd_schrotte["quantity"].to_list())
-            # print("------- is negative", is_negative)
-            # if is_negative:
             violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
-            #violence = np.sum(c_violation_ann) / np.sum(beq)
             if violence > self.general_info.violation_threshold:
                 # return the message to the frontend
                 _data = f"Simulation:{self.sim_settings.id}- violation is more than threshold:  {violence}>{self.general_info.violation_threshold}. Please try again."
@@ -289,7 +276,6 @@ class ScrapOptimization:
             else:
                 # update and save the database of the schrott quantity
                 try:
-                    # supplier_quantity_hist.append(fremd_schrotte["quantity"].to_list())
                     supplier_quantity_hist.append(ns.df_schrott["quantity"].to_list())
                     sim_id_hist.append(self.sim_settings.id)
                     result_current = {}
@@ -326,16 +312,6 @@ class ScrapOptimization:
                     with open(f'buy_list_{self.sim_settings.id}.json', 'w') as f:
                         json.dump(_data, f, indent=4)
 
-        # for idx, remote_scrap in enumerate(supplier_quantity_hist[0]):
-        #     values = []
-        #     for i in range(len(supplier_quantity_hist)):
-        #         values.append(supplier_quantity_hist[i][idx])
-        #     plt.plot(range(len(supplier_quantity_hist)), values, label=f"F{idx+1}")
-        
-        # plt.title(f"ID: {self.sim_settings.id}, Total quantity: {self.sim_settings.total_quantity}")
-        # plt.legend()
-        # plt.savefig(f"sim_output/simulation_output_{self.sim_settings.id}.png")
-        # plt.show()
 
     def fremdschrott_chemi_table(self, df_chemi, fremd_schrotte_names,company_count):
         # construct the chemical table
