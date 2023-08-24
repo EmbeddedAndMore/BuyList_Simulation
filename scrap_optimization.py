@@ -242,8 +242,8 @@ class ScrapOptimization:
         # supplier_quantity_hist = []
         
         # check if the optimal schrott list is valid
-        fremd_schrotte = df_schrott[df_schrott["name"].str.startswith("F")].copy()
-        supplier_quantity_hist.append(fremd_schrotte["quantity"].to_list())
+        # fremd_schrotte = ns.df_schrott[ns.df_schrott["name"].str.startswith("F")].copy()
+        # supplier_quantity_hist.append(fremd_schrotte["quantity"].to_list())
         
         
         for i in range(self.sim_settings.epochs):
@@ -257,14 +257,18 @@ class ScrapOptimization:
             print("################# Optimizing for SLSQP iteration #################")
             
             # every simulation updates the upper bounds
-            bounds = Bounds([0.0]*total_variable_length, fremd_schrotte["quantity"].to_list())
+            bounds = Bounds([0.0]*total_variable_length, ns.df_schrott["quantity"].to_list())
             x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,beq, x_start, bounds)
             print("################### original fremd schrotte ###################")
-            print(fremd_schrotte["quantity"].to_list())
+            print(ns.df_schrott["quantity"].to_list())
             # substract the optimal schrott list from the total quantity
 
             print("############### ANN result #################", x_ann)
-            fremd_schrotte.loc[:, "quantity"] = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
+            # fremd_schrotte.loc[:, "quantity"] = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
+            fremd_schrotte = ns.df_schrott.copy()
+            subs = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
+            fremd_schrotte["quantity"] = subs
+            ns.df_schrott = fremd_schrotte
             
             violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
             if violence > self.general_info.violation_threshold:

@@ -94,7 +94,7 @@
             "V"
         ],
         "train_dataset": "assets/df_12379.csv",
-        "scrap_dataset": "assets/scrap2.csv",
+        "scrap_dataset": "assets/scrap_3.csv",
         "chemi_dataset": "assets/chemi.csv",
         "ML_MODELS": "ml_models",
         "violation_threshold": 0.2

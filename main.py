@@ -1,5 +1,7 @@
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Pool
+import traceback
+
 
 import numpy as np
 import pandas as pd
@@ -34,32 +36,12 @@ class Settings(BaseSettings):
     simulations: list[SimulationInfo]
 
 
-
 settings = Settings.parse_file("settings.json")
 simulations = settings.simulations
 general_info = settings.general_info
 supplier_quantity_hist = []
 df_schrott = pd.read_csv(general_info.scrap_dataset)
-
-
-def get_df_schrott():
-        return df_schrott
-
-
-def set_df_schrott(value, lock):
-    global df_schrott
-    lock.acquire()
-    df_schrott = value
-    lock.release()
-
-
-# def log_fremd_schrotte_quantity(fremd_schrotte_quantity, lock):
-#     print("================== log called ==================")
-#     # global supplier_quantity_hist
-#     lock.acquire()
-#     print("================== lock acquired ==================")
-#     supplier_quantity_hist.append(fremd_schrotte_quantity)
-#     lock.release()
+df_schrott = df_schrott[df_schrott["name"].str.startswith("F")]
 
 
 def run_simulation(simulation):
@@ -74,7 +56,9 @@ def run_simulation(simulation):
         print(f"Running optimization for id:{simulation_settings.id}")
         so.optimize(simulation_settings.total_quantity, chemi_component, simulation_settings.steel_type, df_schrott, supplier_quantity_hist,sim_id_hist)
     except Exception as e:
+        print("Error:")
         print(e)
+        print(traceback.format_exc())
 
 
 if __name__ == "__main__":
