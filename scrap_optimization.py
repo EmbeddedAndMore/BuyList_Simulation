@@ -30,7 +30,7 @@ class ScrapOptimization:
             "features": general_info.features
         }
         
-    def optimize(self, total_quantity:float, chemi_component:list, selected_stahl_name:str):
+    def optimize(self, total_quantity:float, chemi_component:list, selected_stahl_name:str, ns,supplier_quantity_hist,sim_id_hist):
         """
         Args:
             total_quantity (int): the total amount of scraps to optimize in kg 
@@ -48,7 +48,7 @@ class ScrapOptimization:
         df = df[self.general_info.features]   # extract the used features from the dataframe
         
         # convert the `Schrott` model to a pandas dataframe, and extract the `price` column
-        df_schrott = pd.read_csv(self.general_info.scrap_dataset)
+        df_schrott = ns.df_schrott # pd.read_csv(self.general_info.scrap_dataset)
         df_price = df_schrott["price"].to_numpy().astype(np.float32)
         company_count = int(df_schrott[["company"]].nunique())
         
@@ -247,12 +247,12 @@ class ScrapOptimization:
         ############################## Opt Running ##############################
         opt_result = []
         all_results = []
-        supplier_quantity_hist = []
+        # supplier_quantity_hist = []
         
         # check if the optimal schrott list is valid
-        fremd_schrotte = df_schrott[df_schrott["name"].str.startswith("F")].copy()
+        # fremd_schrotte = ns.df_schrott #df_schrott[df_schrott["name"].str.startswith("F")].copy()
         is_negative = False
-        supplier_quantity_hist.append(fremd_schrotte["quantity"].to_list())
+        # supplier_quantity_hist.append(ns.df_schrott["quantity"].to_list())
         
         
         for i in range(self.sim_settings.epochs):
@@ -265,16 +265,22 @@ class ScrapOptimization:
             print("################# Optimizing for SLSQP iteration #################")
             
             # TODO: add the bounds here
-            bounds = Bounds([0.0]*total_variable_length, fremd_schrotte["quantity"].to_list())
+            bounds = Bounds([0.0]*total_variable_length, ns.df_schrott["quantity"].to_list())
             x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,beq, x_start, bounds)
             print("################### original fremd schrotte ###################")
-            print(fremd_schrotte["quantity"].to_list())
+            print(ns.df_schrott["quantity"].to_list())
             # substract the optimal schrott list from the total quantity
             # TODO:remove this condition
             x_ann = np.where(x_ann > 10, x_ann, 0)
-            print("############### ANN result #################", x_ann)
-            fremd_schrotte.loc[:, "quantity"] = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
-            
+            print("############### ANN result #################")
+            print(x_ann)
+            fremd_schrotte = ns.df_schrott.copy()
+            subs = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
+            fremd_schrotte["quantity"] = subs
+            ns.df_schrott = fremd_schrotte
+            # print("############### fremd schrotte after subtraction #################")
+            # print(df_schrott["quantity"].to_list())
+            # set_df_schrott(fremd_schrotte,lock)
             # TODO: here should be the termination condition instead negative
             # if np.sum(np.abs(c_violation_ann)) / np.sum(beq) > 0.2:  first try 20%
             # is_negative = any(fremd_schrotte["quantity"] < 0)
@@ -287,10 +293,13 @@ class ScrapOptimization:
                 _data = f"Simulation:{self.sim_settings.id}- violation is more than threshold:  {violence}>{self.general_info.violation_threshold}. Please try again."
                 # terminate the optimization process
                 print(_data)
+                return
             else:
                 # update and save the database of the schrott quantity
                 try:
-                    supplier_quantity_hist.append(fremd_schrotte["quantity"].to_list())
+                    # supplier_quantity_hist.append(fremd_schrotte["quantity"].to_list())
+                    supplier_quantity_hist.append(ns.df_schrott["quantity"].to_list())
+                    sim_id_hist.append(self.sim_settings.id)
                     result_current = {}
                     
                     optimal_value = objective(x_ann, constant_column, kreislauf_column, legierung_column)
@@ -303,10 +312,10 @@ class ScrapOptimization:
                     if opt_result:
                         if sum(objective_values.values()) < sum(opt_result[0]["objective_values"].values()):
                             opt_result[0] = result_current
-                            fremd_schrotte.to_csv(f"scrap_result_after_buy_{self.sim_settings.id}.csv")
+                            # fremd_schrotte.to_csv(f"scrap_result_after_buy_{self.sim_settings.id}.csv")
                     else:
                         opt_result.append(result_current)
-                        fremd_schrotte.to_csv(f"scrap_result_after_buy_{self.sim_settings.id}.csv")
+                        # fremd_schrotte.to_csv(f"scrap_result_after_buy_{self.sim_settings.id}.csv")
 
                     
                     all_results.append(result_current)
@@ -325,16 +334,16 @@ class ScrapOptimization:
                     with open(f'buy_list_{self.sim_settings.id}.json', 'w') as f:
                         json.dump(_data, f, indent=4)
 
-        for idx, remote_scrap in enumerate(supplier_quantity_hist[0]):
-            values = []
-            for i in range(len(supplier_quantity_hist)):
-                values.append(supplier_quantity_hist[i][idx])
-            plt.plot(range(len(supplier_quantity_hist)), values, label=f"F{idx+1}")
+        # for idx, remote_scrap in enumerate(supplier_quantity_hist[0]):
+        #     values = []
+        #     for i in range(len(supplier_quantity_hist)):
+        #         values.append(supplier_quantity_hist[i][idx])
+        #     plt.plot(range(len(supplier_quantity_hist)), values, label=f"F{idx+1}")
         
-        plt.title(f"ID: {self.sim_settings.id}, Total quantity: {self.sim_settings.total_quantity}")
-        plt.legend()
-        plt.savefig(f"sim_output/simulation_output_{self.sim_settings.id}.png")
-        plt.show()
+        # plt.title(f"ID: {self.sim_settings.id}, Total quantity: {self.sim_settings.total_quantity}")
+        # plt.legend()
+        # plt.savefig(f"sim_output/simulation_output_{self.sim_settings.id}.png")
+        # plt.show()
 
     def fremdschrott_chemi_table(self, df_chemi, fremd_schrotte_names,company_count):
         # construct the chemical table
