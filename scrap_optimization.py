@@ -85,9 +85,8 @@ class ScrapOptimization:
             y = xgb_model.predict(xgb.DMatrix([x]))   #x1.reshape(1,-1))
             return y.item()
 
-        # function to calculate the total cost of xgboost version
+        # function to calculate the transport cost of xgboost version
         def sum_t3_xgb(x):
-            """return sum of three objectives"""
             summe = 0
             # quantity = np.array([sum(g) for g in list(grouper(x,company_count))])
             quantity = np.array([sum(x[i::company_count]) for i in range(len(x) // company_count)])
@@ -100,7 +99,7 @@ class ScrapOptimization:
                     summe += 100.0
                 return summe
 
-        # objective xgboost
+        # objective xgboost: the total cost of the optimization problem
         def objective(x, constant_column, kreislauf_column, legierung_column):
             t1 = np.dot(x, price_list)
             # print(f"{company_count=}")
@@ -335,7 +334,6 @@ class ScrapOptimization:
         fremdschrotte_chemi_table = pd.concat(temp_dfs, axis=1) / 100.0
         
         return fremdschrotte_chemi_table
-
 
 
     def df_columns_name(self, df):

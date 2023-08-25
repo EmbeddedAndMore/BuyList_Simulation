@@ -89,7 +89,7 @@ if __name__ == "__main__":
         plt.savefig(f"sim_output/simulation_output2.png")
         plt.show()
 
-        counts = [0]*8
+        counts = [0]*2
         for item in sim_id_hist:
             counts[item-1] += 1
 
