@@ -86,7 +86,7 @@ if __name__ == "__main__":
         # plt.title(f"ID: {self.sim_settings.id}, Total quantity: {self.sim_settings.total_quantity}")
         plt.legend()
         # plt.savefig(f"sim_output/simulation_output_{self.sim_settings.id}.png")
-        plt.savefig(f"sim_output/simulation_output.png")
+        plt.savefig(f"sim_output/simulation_output2.png")
         plt.show()
 
         counts = [0]*8

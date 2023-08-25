@@ -89,7 +89,8 @@ class ScrapOptimization:
         def sum_t3_xgb(x):
             """return sum of three objectives"""
             summe = 0
-            quantity = np.array([sum(g) for g in list(grouper(x,company_count))])
+            # quantity = np.array([sum(g) for g in list(grouper(x,company_count))])
+            quantity = np.array([sum(x[i::company_count]) for i in range(len(x) // company_count)])
             for q in quantity:
                 if q <= 10.0:
                     summe += 0.0
@@ -131,8 +132,8 @@ class ScrapOptimization:
             X: tf.Tensor, the quantity of every scrap
             """
             summe = tf.constant(0.0, dtype=tf.float32)
-            quantity = tf.reduce_sum(tf.reshape(x,[-1,company_count]), axis=1) #tf.convert_to_tensor([sum(g) for g in list(grouper(10, x))])
-
+            #quantity = tf.reduce_sum(tf.reshape(x,[-1,company_count]), axis=1) 
+            quantity = [tf.reduce_sum(tf.gather(x, range(i, len(x), company_count))) for i in range(len(x) // company_count)]
             for q in quantity:
                 q = tf.reshape(q, ())
                 summe += tf.cond(q <= 10.0, 
