@@ -83,7 +83,7 @@ if __name__ == "__main__":
         core_count = 8
         with Pool(core_count) as p:
             p.map(run_simulation, simulations)
-        # run_simulation(simulations[0])
+
         print("len(supplier_quantity_hist): ",len(supplier_quantity_hist))
         all_hist = np.empty(shape=(0,len(supplier_quantity_hist)))
         # values_list = []
@@ -94,28 +94,12 @@ if __name__ == "__main__":
                 values.append(supplier_quantity_hist[i][idx])
 
             all_hist = np.vstack((all_hist, np.array(values).reshape(1,-1).copy()))
-            # values_list.append(values)
-
-        # for values in values_list:
-        #     if values.count(values[0]) != len(values):
-        #         axes[0].plot(range(len(supplier_quantity_hist)), values, label=f"F{idx+1}",linewidth=0.5)
-        # with open("saved_plt0", "wb") as fp:   #Pickling
-        #     pickle.dump(values_list, fp)
 
 
         for idx, row in enumerate(all_hist):
-            if not np.all(np.isclose(row, row[0])) and not np.all(row[:10]<1) and np.nan not in row:
+            if not np.all(np.isclose(row, row[0], atol=0.25)) and not np.all(row[:10]<1) and np.nan not in row:
                 axes[0].plot(range(row.shape[0]), row, label=f"F{idx+1}",linewidth=0.5)
         np.save("saved_plt.npy", all_hist)
-
-
-
-
-        # plt.title(f"ID: {self.sim_settings.id}, Total quantity: {self.sim_settings.total_quantity}")
-        # plt.legend()
-        # plt.savefig(f"sim_output/simulation_output_{self.sim_settings.id}.png")
-        
-        # plt.show()
 
         print(f"sim_id_hist= {[item for item in sim_id_hist]}")
         counts = [0]*8

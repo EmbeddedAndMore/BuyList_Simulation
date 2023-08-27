@@ -213,8 +213,6 @@ class ScrapOptimization:
                 
             # print(f"aeq= {aeq}")
             def equality_fun(x):
-                # if remove_f1:
-                # aeq[0] = 0
                 return np.dot(aeq, x) - beq 
             
             eq_cons = {'type': 'eq','fun' : equality_fun}
