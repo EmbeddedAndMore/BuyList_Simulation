@@ -214,7 +214,7 @@ class ScrapOptimization:
             # print(f"aeq= {aeq}")
             def equality_fun(x):
                 # if remove_f1:
-                aeq[0] = 0
+                # aeq[0] = 0
                 return np.dot(aeq, x) - beq 
             
             eq_cons = {'type': 'eq','fun' : equality_fun}
@@ -276,7 +276,14 @@ class ScrapOptimization:
             
             violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
 
+
             is_negative = any(ns.df_schrott["quantity"] < 0)
+            if is_negative:
+                fremd_schrotte = ns.df_schrott.copy()
+                fremd_schrotte.loc[fremd_schrotte["quantity"] < 0, "quantity"] = 0
+                ns.df_schrott = fremd_schrotte
+
+
             if violence > self.general_info.violation_threshold:
                 # return the message to the frontend
                 _data = f"Simulation:{self.sim_settings.id}- violation is more than threshold:  {violence}>{self.general_info.violation_threshold}. Please try again."
