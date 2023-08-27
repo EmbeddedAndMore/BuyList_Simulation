@@ -57,6 +57,7 @@ class ScrapOptimization:
         constant_features_names, schrotte_features_names, kreislauf_schrotte_names, legierung_schrotte_names,fremd_schrotte_names = self.df_columns_name(df)
         
         length_fremdschrott = len(fremd_schrotte_names) 
+        
         total_variable_length = length_fremdschrott * company_count  # the total number of variable parameters to optimize
         
         price_list = df_price[:total_variable_length]  # the price list of all the schrott
@@ -204,13 +205,16 @@ class ScrapOptimization:
 
             return res_pdfo.x, res_pdfo.fun, c_violation, elapsed_time_pdfo, res_pdfo.method
         
-        def optimize_grad(constant_column, kreislauf_column, legierung_column, beq, x_start, bounds):
+        def optimize_grad(constant_column, kreislauf_column, legierung_column, beq, x_start, bounds, remove_f1=False):
             # Wrap the objective and gradient functions with lambda functions
             
             wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
             wrapped_grad_f_ann_tf = lambda x: grad_f_ann_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
                 
+            # print(f"aeq= {aeq}")
             def equality_fun(x):
+                # if remove_f1:
+                aeq[0] = 0
                 return np.dot(aeq, x) - beq 
             
             eq_cons = {'type': 'eq','fun' : equality_fun}
@@ -271,6 +275,8 @@ class ScrapOptimization:
             ns.df_schrott = fremd_schrotte
             
             violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
+
+            is_negative = any(ns.df_schrott["quantity"] < 0)
             if violence > self.general_info.violation_threshold:
                 # return the message to the frontend
                 _data = f"Simulation:{self.sim_settings.id}- violation is more than threshold:  {violence}>{self.general_info.violation_threshold}. Please try again."
