@@ -77,7 +77,7 @@ def run_simulation(simulation):
 if __name__ == "__main__":
     # # print(settings)
     with multiprocessing.Manager() as manager:
-        lock = manager.Lock()
+        # lock = manager.Lock()
         supplier_quantity_hist = manager.list()
         sim_id_hist = manager.list()
         ns = manager.Namespace()
