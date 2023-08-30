@@ -356,7 +356,7 @@ class ScrapOptimization:
                     print(traceback.format_exc())
                     
                 finally:
-                    with open(f'buy_list_{self.sim_settings.id}.json', 'w') as f:
+                    with open(f'buy_list/buy_list_{self.sim_settings.id}.json', 'w') as f:
                         json.dump(_data, f, indent=4)
 
 
