@@ -104,7 +104,7 @@ if __name__ == "__main__":
         for idx, row in enumerate(all_hist):
             if not np.all(np.isclose(row, row[0], atol=0.25)) and not np.all(row[:10]<1) and np.nan not in row:
                 axes[0].plot(range(row.shape[0]), row, label=f"F{idx+1}",linewidth=0.5)
-        np.save("saved_plt.npy", all_hist)
+        np.save("npy/saved_plt.npy", all_hist)
 
         print(f"sim_id_hist= {[item for item in sim_id_hist]}")
         counts = [0]*8
