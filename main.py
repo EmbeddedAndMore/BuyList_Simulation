@@ -34,6 +34,8 @@ class SimulationInfo(BaseModel):
     total_quantity:int
     epochs: int
     feature: int
+    # def steel_type(self):
+    #     return self.steel_type_const
 
 class Settings(BaseSettings):
     general_info:GeneralInfo
@@ -46,6 +48,7 @@ general_info = settings.general_info
 supplier_quantity_hist = []
 df_schrott = pd.read_csv(general_info.scrap_dataset)
 df_schrott = df_schrott[df_schrott["name"].str.startswith("F")]
+global_lock = multiprocessing.Lock()
 
 # physical_devices = tf.config.list_physical_devices('CPU') 
 # for device in physical_devices:
@@ -55,14 +58,16 @@ df_schrott = df_schrott[df_schrott["name"].str.startswith("F")]
 def run_simulation(simulation):
     simulation_settings,df_schrott,supplier_quantity_hist, sim_id_hist = simulation
 
-    try:
-        so = ScrapOptimization(general_info, simulation_settings)
+    try: 
+        global_lock.acquire()
+        so= ScrapOptimization(general_info, simulation_settings)
         steel_chemi_df = pd.read_csv("assets/steel_chemi_components.csv")
         chemies = steel_chemi_df.loc[steel_chemi_df["name"] == float(simulation_settings.steel_type)]
         chemies = chemies[['C','Si','Mn','Cr','Mo','V']].values
         chemi_component = [float(i) for i in chemies[0]] 
         print(f"Running optimization for id:{simulation_settings.id}")
         so.optimize(simulation_settings.total_quantity, chemi_component, simulation_settings.steel_type, df_schrott, supplier_quantity_hist,sim_id_hist)
+        global_lock.release()
     except Exception as e:
         print("Error:")
         print(e)
@@ -107,7 +112,7 @@ if __name__ == "__main__":
             counts[item-1] += 1
 
         axes[1].bar(range(core_count), counts)
-        plt.savefig(f"sim_output/simulation_output2.png")
+        plt.savefig(f"sim_output/simulation_output3.png")
         plt.show()
 
 

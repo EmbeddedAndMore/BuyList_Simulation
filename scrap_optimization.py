@@ -204,18 +204,18 @@ class ScrapOptimization:
             c_violation = res_pdfo.constr_value[0].tolist()
 
             return res_pdfo.x, res_pdfo.fun, c_violation, elapsed_time_pdfo, res_pdfo.method
+
         
-        def optimize_grad(constant_column, kreislauf_column, legierung_column, beq, x_start, bounds, remove_f1=False):
+        def optimize_grad(constant_column, kreislauf_column, legierung_column, beq, x_start,constraints, bounds):
             # Wrap the objective and gradient functions with lambda functions
             
             wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
             wrapped_grad_f_ann_tf = lambda x: grad_f_ann_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
                 
-            # print(f"aeq= {aeq}")
-            def equality_fun(x):
-                return np.dot(aeq, x) - beq 
+            # def equality_fun(x):
+            #     return np.dot(aeq, x) - beq 
             
-            eq_cons = {'type': 'eq','fun' : equality_fun}
+            # eq_cons = {'type': 'eq','fun' : equality_fun}
             
             
             # Initialize the dictionary to store the objective function values
@@ -227,7 +227,7 @@ class ScrapOptimization:
                 n_iter[0] += 1
             
             start = time.time()
-            result = minimize(fun=wrapped_objective_tf, x0=x_start, jac=wrapped_grad_f_ann_tf, constraints=[eq_cons], method='SLSQP',
+            result = minimize(fun=wrapped_objective_tf, x0=x_start, jac=wrapped_grad_f_ann_tf, constraints=constraints, method='SLSQP',
                             options={'disp': False, 'maxiter':max_iter, 'ftol':1e-9}, bounds=bounds, tol=1e-9,
                             callback=callback)
 
@@ -241,11 +241,12 @@ class ScrapOptimization:
         ############################## Opt Running ##############################
         opt_result = []
         all_results = []
-        # supplier_quantity_hist = []
         
-        # check if the optimal schrott list is valid
-        # fremd_schrotte = ns.df_schrott[ns.df_schrott["name"].str.startswith("F")].copy()
-        # supplier_quantity_hist.append(fremd_schrotte["quantity"].to_list())
+        # create a function to return the equality constraint for every index that lb >= ub
+        def create_equality_fun_zero_for_index(idx):
+            def equality_fun_zero(x):
+                return x[idx]
+            return equality_fun_zero
         
         
         for i in range(self.sim_settings.epochs):
@@ -255,12 +256,44 @@ class ScrapOptimization:
 
             # right hand side of equality constraint
             beq = chemi_to_achieve_fremdschrotte
+            
             x_start = np.linalg.lstsq(aeq, beq, rcond=None)[0]
             print("################# Optimizing for SLSQP iteration #################")
             
-            # every simulation updates the upper bounds
             bounds = Bounds([0.0]*total_variable_length, ns.df_schrott["quantity"].to_list())
-            x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,beq, x_start, bounds)
+            
+            def equality_fun(x):
+                 return np.dot(aeq, x) - beq 
+            
+            constraints = [{'type': 'eq','fun' : equality_fun}]
+            
+            # update the equality constraints
+            if np.any(bounds.lb >= bounds.ub):
+                # get the index of the upper bound which is 0
+                bounds_index = np.where(bounds.lb > bounds.ub)[0]
+                print(f"bounds_index: {bounds_index}")
+                # for every index, we add a new equality constraint
+                for index in bounds_index:
+                    constraints.append({'type': 'eq', 'fun': create_equality_fun_zero_for_index(index)})
+                    bounds[bounds_index][0] = -1.
+                    bounds[bounds_index][1] = 1.
+        
+        
+            # if np.any(bounds.lb >= bounds.ub):
+            #     # get the index of the upper bound which is 0
+            #     bounds_index = np.where(bounds.lb > bounds.ub)[0]
+            #     print(f"bounds_index: {bounds_index}")
+            #     # for every index, we add a new equality constraint
+            #     for index in bounds_index:
+            #         def equality_fun_zero(x):
+            #             return x[index]
+            #         constraints.append({'type': 'eq','fun' : equality_fun_zero})
+            #         bounds[bounds_index][0] = -1.
+            #         bounds[bounds_index][1] = 1.
+            
+            # then we optimize the problem again
+            x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,
+                                                                                                beq, x_start, constraints, bounds)
             print("################### original fremd schrotte ###################")
             print(ns.df_schrott["quantity"].to_list())
             # substract the optimal schrott list from the total quantity
@@ -273,13 +306,12 @@ class ScrapOptimization:
             ns.df_schrott = fremd_schrotte
             
             violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
-
-
-            is_negative = any(ns.df_schrott["quantity"] < 0)
-            if is_negative:
-                fremd_schrotte = ns.df_schrott.copy()
-                fremd_schrotte.loc[fremd_schrotte["quantity"] < 0, "quantity"] = 0
-                ns.df_schrott = fremd_schrotte
+            
+            # is_negative = any(ns.df_schrott["quantity"] < 0)
+            # if is_negative:
+            #     fremd_schrotte = ns.df_schrott.copy()
+            #     fremd_schrotte.loc[fremd_schrotte["quantity"] < 0, "quantity"] = 0
+            #     ns.df_schrott = fremd_schrotte
 
 
             if violence > self.general_info.violation_threshold:
@@ -386,7 +418,7 @@ class ScrapOptimization:
         # calculate the constant features
         selected_feature = df.iloc[[self.sim_settings.feature]]
         constant_column = (selected_feature[constant_features_names].values[0]).astype(np.float32)
-        print(f"{constant_column=}")
+        #print(f"{constant_column=}")
         
         # calculate the chemical component for kreislauf
         kreislauf_column = (df_random_row[kreislauf_schrotte_names].values[0]).astype(np.float32)
@@ -397,6 +429,7 @@ class ScrapOptimization:
         legierung_column = (df_random_row[legierung_schrotte_names].values[0]).astype(np.float32)
         legierung_chemical_table = df_chemi[self.general_info.chemi_names].iloc[len(fremd_schrotte_names):len(kreislauf_schrotte_names)-1]
         chemi_component_legierung = (np.dot(legierung_column, legierung_chemical_table) /100.0).astype(np.float32)
+
         
         # calculate the chemical compoent for fremdschrotte
         chemi_to_achieve_fremdschrotte = (np.abs(total_chemi_to_achieve - chemi_component_kreislauf - chemi_component_legierung)).astype(np.float32)
