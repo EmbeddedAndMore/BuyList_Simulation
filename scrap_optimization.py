@@ -275,21 +275,9 @@ class ScrapOptimization:
                 # for every index, we add a new equality constraint
                 for index in bounds_index:
                     constraints.append({'type': 'eq', 'fun': create_equality_fun_zero_for_index(index)})
-                    bounds[bounds_index][0] = -1.
-                    bounds[bounds_index][1] = 1.
-        
-        
-            # if np.any(bounds.lb >= bounds.ub):
-            #     # get the index of the upper bound which is 0
-            #     bounds_index = np.where(bounds.lb > bounds.ub)[0]
-            #     print(f"bounds_index: {bounds_index}")
-            #     # for every index, we add a new equality constraint
-            #     for index in bounds_index:
-            #         def equality_fun_zero(x):
-            #             return x[index]
-            #         constraints.append({'type': 'eq','fun' : equality_fun_zero})
-            #         bounds[bounds_index][0] = -1.
-            #         bounds[bounds_index][1] = 1.
+                    bounds.lb[bounds_index] = -1.
+                    bounds.ub[bounds_index] = 1.
+
             
             # then we optimize the problem again
             x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,
@@ -307,7 +295,7 @@ class ScrapOptimization:
             
             violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
             
-            # is_negative = any(ns.df_schrott["quantity"] < 0)
+            # is_negative = any(ns.df_schrott["quantity"] < 0)  
             # if is_negative:
             #     fremd_schrotte = ns.df_schrott.copy()
             #     fremd_schrotte.loc[fremd_schrotte["quantity"] < 0, "quantity"] = 0

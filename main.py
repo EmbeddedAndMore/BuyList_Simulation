@@ -13,7 +13,6 @@ from pydantic import BaseSettings, BaseModel
 from joblib import Parallel, delayed
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-import tensorflow as tf
 
 from scrap_optimization import ScrapOptimization
 
@@ -91,7 +90,6 @@ if __name__ == "__main__":
 
         print("len(supplier_quantity_hist): ",len(supplier_quantity_hist))
         all_hist = np.empty(shape=(0,len(supplier_quantity_hist)))
-        # values_list = []
         fig, axes = plt.subplots(1,2, figsize=(15, 7))
         for idx, remote_scrap in enumerate(supplier_quantity_hist[0]):
             values = []
@@ -112,7 +110,7 @@ if __name__ == "__main__":
             counts[item-1] += 1
 
         axes[1].bar(range(core_count), counts)
-        plt.savefig(f"sim_output/simulation_output3.png")
+        plt.savefig(f"sim_output/simulation_output5.png")
         plt.show()
 
 
