@@ -92,10 +92,10 @@ class ScrapOptimization:
             # quantity = np.array([sum(g) for g in list(grouper(x,company_count))])
             quantity = np.array([sum(x[i::company_count]) for i in range(len(x) // company_count)])
             for q in quantity:
-                if q <= 10.0:
+                if q <= 50.0:
                     summe += 0.0
-                elif q > 10.0 and q <= 50.0:
-                    summe += 2.5 * (q-10) 
+                elif q > 50.0 and q <= 100.0:
+                    summe += 2.5 * (q-50) 
                 else:
                     summe += 100.0
                 return summe
@@ -103,15 +103,21 @@ class ScrapOptimization:
         # objective xgboost: the total cost of the optimization problem
         def objective(x, constant_column, kreislauf_column, legierung_column):
             t1 = np.dot(x, price_list)
-            # print(f"{company_count=}")
-            # print(f"x: {x.shape}")
             list_fremdschrotte = [sum(g) for g in list(grouper(x,company_count))]
             features = np.concatenate((constant_column, kreislauf_column, list_fremdschrotte, legierung_column))
-            t2 = f_xgb(features)
+            t2 = f_xgb(features)*1.2
+            t3 = sum_t3_xgb(x)
+            return (t1 + t2 + t3).item()
+        
+        def objective_without_strom(x, constant_column, kreislauf_column, legierung_column):
+            t1 = np.dot(x, price_list)
+            list_fremdschrotte = [sum(g) for g in list(grouper(x,company_count))]
+            features = np.concatenate((constant_column, kreislauf_column, list_fremdschrotte, legierung_column))
+            t2 = f_xgb(features)*0.001
             t3 = sum_t3_xgb(x)
             return (t1 + t2 + t3).item()
 
-        # ann prediction 
+        # ann prediction strompreis für indsutrie  40,11 ct/kWh
         @tf.function
         def tf_ann(x,constant_column,kreislauf_column,legierung_column):
             x = tf.convert_to_tensor(x, dtype=tf.float32)
@@ -136,10 +142,10 @@ class ScrapOptimization:
             quantity = [tf.reduce_sum(tf.gather(x, range(i, len(x), company_count))) for i in range(len(x) // company_count)]
             for q in quantity:
                 q = tf.reshape(q, ())
-                summe += tf.cond(q <= 10.0, 
+                summe += tf.cond(q <= 50.0, 
                                 lambda: 0.0, 
-                                lambda: tf.cond(q > 10.0 and q <= 50.0, 
-                                                lambda: 2.5 * (q - 10), 
+                                lambda: tf.cond(q > 50.0 and q <= 100.0, 
+                                                lambda: 2.5 * (q - 50), 
                                                 lambda: 100.0))
             return summe
 
@@ -149,7 +155,17 @@ class ScrapOptimization:
             x = tf.convert_to_tensor(x, dtype=tf.float32)
             price_list_tf = tf.convert_to_tensor(price_list, dtype=tf.float32)
             t1 = tf.tensordot(x, price_list_tf,axes=1)
-            t2 = tf_ann(x,constant_column,kreislauf_column,legierung_column)
+            t2 = tf_ann(x,constant_column,kreislauf_column,legierung_column)*1.2
+            t3 = sum_t3_tf(x)
+            
+            return t1 + t2 + t3
+        
+        @tf.function
+        def objective_tf_without_strom(x,constant_column,kreislauf_column,legierung_column):
+            x = tf.convert_to_tensor(x, dtype=tf.float32)
+            price_list_tf = tf.convert_to_tensor(price_list, dtype=tf.float32)
+            t1 = tf.tensordot(x, price_list_tf,axes=1)
+            t2 = tf_ann(x,constant_column,kreislauf_column,legierung_column)*0.001
             t3 = sum_t3_tf(x)
             
             return t1 + t2 + t3
@@ -206,18 +222,19 @@ class ScrapOptimization:
             return res_pdfo.x, res_pdfo.fun, c_violation, elapsed_time_pdfo, res_pdfo.method
 
         
-        def optimize_grad(constant_column, kreislauf_column, legierung_column, beq, x_start,constraints, bounds):
+        def optimize_grad(constant_column, kreislauf_column, legierung_column, beq, x_start,constraints, bounds, without=False):
             # Wrap the objective and gradient functions with lambda functions
             
-            wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
+            #wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
             wrapped_grad_f_ann_tf = lambda x: grad_f_ann_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
-                
-            # def equality_fun(x):
-            #     return np.dot(aeq, x) - beq 
             
-            # eq_cons = {'type': 'eq','fun' : equality_fun}
-            
-            
+            if without:
+                wrapped_objective_tf = lambda x: objective_tf_without_strom(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
+
+            else:
+                wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)    
+
+
             # Initialize the dictionary to store the objective function values
             objective_values = {}
 
@@ -236,11 +253,10 @@ class ScrapOptimization:
             c_violation = (np.dot(aeq, result.x) - beq).tolist()
             
             elapsed_time = end - start
-            return result.x, result.fun, c_violation, elapsed_time, objective_values
+            return np.rint(result.x), result.fun, c_violation, elapsed_time, objective_values
         
         ############################## Opt Running ##############################
         opt_result = []
-        all_results = []
         
         # create a function to return the equality constraint for every index that lb >= ub
         def create_equality_fun_zero_for_index(idx):
@@ -254,98 +270,108 @@ class ScrapOptimization:
             constant_column, kreislauf_column, legierung_column, chemi_to_achieve_fremdschrotte = self.calculate_chemi_component(df, df_chemi,
             constant_features_names,kreislauf_schrotte_names,legierung_schrotte_names,fremd_schrotte_names,total_chemi_to_achieve)
 
+            
             # right hand side of equality constraint
             beq = chemi_to_achieve_fremdschrotte
             
             x_start = np.linalg.lstsq(aeq, beq, rcond=None)[0]
             print("################# Optimizing for SLSQP iteration #################")
-            
-            bounds = Bounds([0.0]*total_variable_length, ns.df_schrott["quantity"].to_list())
-            
-            def equality_fun(x):
-                 return np.dot(aeq, x) - beq 
-            
-            constraints = [{'type': 'eq','fun' : equality_fun}]
-            
-            # update the equality constraints
-            if np.any(bounds.lb >= bounds.ub):
-                # get the index of the upper bound which is 0
-                bounds_index = np.where(bounds.lb > bounds.ub)[0]
-                print(f"bounds_index: {bounds_index}")
-                # for every index, we add a new equality constraint
-                for index in bounds_index:
-                    constraints.append({'type': 'eq', 'fun': create_equality_fun_zero_for_index(index)})
-                    bounds.lb[bounds_index] = -1.
-                    bounds.ub[bounds_index] = 1.
+            for without in [True, False]:
+                
+                bounds = Bounds([0.0]*total_variable_length, ns.df_schrott["quantity"].to_list())
 
-            
-            # then we optimize the problem again
-            x_ann, loss_ann, c_violation_ann, elapsed_time_ann, objective_values = optimize_grad(constant_column, kreislauf_column, legierung_column,
-                                                                                                beq, x_start, constraints, bounds)
-            print("################### original fremd schrotte ###################")
-            print(ns.df_schrott["quantity"].to_list())
-            # substract the optimal schrott list from the total quantity
+                def equality_fun(x):
+                     return np.dot(aeq, x) - beq 
 
-            print("############### ANN result #################", x_ann)
-            # fremd_schrotte.loc[:, "quantity"] = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
-            fremd_schrotte = ns.df_schrott.copy()
-            subs = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
-            fremd_schrotte["quantity"] = subs
-            ns.df_schrott = fremd_schrotte
-            
-            violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
-            
-            # is_negative = any(ns.df_schrott["quantity"] < 0)  
-            # if is_negative:
-            #     fremd_schrotte = ns.df_schrott.copy()
-            #     fremd_schrotte.loc[fremd_schrotte["quantity"] < 0, "quantity"] = 0
-            #     ns.df_schrott = fremd_schrotte
+                constraints = [{'type': 'eq','fun' : equality_fun}]
+
+                # update the equality constraints
+                if np.any(bounds.lb >= bounds.ub):
+                    # get the index of the upper bound which is 0
+                    bounds_index = np.where(bounds.lb > bounds.ub)[0]
+                    print(f"bounds_index: {bounds_index}")
+                    # for every index, we add a new equality constraint
+                    for index in bounds_index:
+                        constraints.append({'type': 'eq', 'fun': create_equality_fun_zero_for_index(index)})
+                        bounds.lb[bounds_index] = -1.
+                        bounds.ub[bounds_index] = 1.
 
 
-            if violence > self.general_info.violation_threshold:
-                # return the message to the frontend
-                _data = f"Simulation:{self.sim_settings.id}- violation is more than threshold:  {violence}>{self.general_info.violation_threshold}. Please try again."
-                # terminate the optimization process
-                print(_data)
-                return
-            else:
-                # update and save the database of the schrott quantity
-                try:
-                    supplier_quantity_hist.append(ns.df_schrott["quantity"].to_list())
-                    sim_id_hist.append(self.sim_settings.id)
-                    result_current = {}
-                    
-                    optimal_value = objective(x_ann, constant_column, kreislauf_column, legierung_column)
-                    print("objective value", optimal_value)
-                    
-                    result_current['optimal_value'] = optimal_value
-                    result_current['optimal_schrott_list'] = x_ann.tolist()
-                    result_current['objective_values'] = objective_values
-                    result_current['elapsed_time'] = elapsed_time_ann
-                    if opt_result:
-                        if sum(objective_values.values()) < sum(opt_result[0]["objective_values"].values()):
-                            opt_result[0] = result_current
-                            # fremd_schrotte.to_csv(f"scrap_result_after_buy_{self.sim_settings.id}.csv")
-                    else:
+
+                # then we optimize the problem again
+                x_ann, _, c_violation_ann, elapsed_time_ann, _ = optimize_grad(constant_column, kreislauf_column, legierung_column,
+                                                                                                    beq, x_start, constraints, bounds,  without=without)
+                print("################### original fremd schrotte ###################")
+                print(ns.df_schrott["quantity"].to_list())
+                # substract the optimal schrott list from the total quantity
+                print("############### ANN result #################", x_ann)
+                # fremd_schrotte.loc[:, "quantity"] = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
+                fremd_schrotte = ns.df_schrott.copy()
+                subs = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
+                fremd_schrotte["quantity"] = subs
+                ns.df_schrott = fremd_schrotte
+                violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
+                
+                # is_negative = any(ns.df_schrott["quantity"] < 0)  
+                # if is_negative:
+                #     fremd_schrotte = ns.df_schrott.copy()
+                #     fremd_schrotte.loc[fremd_schrotte["quantity"] < 0, "quantity"] = 0
+                #     ns.df_schrott = fremd_schrotte
+                
+                if violence > self.general_info.violation_threshold:
+                    # return the message to the frontend
+                    _data = f"Simulation:{self.sim_settings.id}- violation is more than threshold:  {violence}>{self.general_info.  violation_threshold}. Please try again."
+                    # terminate the optimization process
+                    print(_data)
+                    return
+                else:
+                    # update and save the database of the schrott quantity
+                    try:
+                        supplier_quantity_hist.append(ns.df_schrott["quantity"].to_list())
+                        sim_id_hist.append(self.sim_settings.id)
+                        result_current = {}
+                        if without:
+                            optimal_value = objective_without_strom(x_ann, constant_column, kreislauf_column, legierung_column)
+                            ############# test strom ################
+                            list_fremdschrotte = [sum(g) for g in list(grouper(x_ann,company_count))]
+                            features = np.concatenate((constant_column, kreislauf_column, list_fremdschrotte, legierung_column))
+                            schmelz_preis = f_xgb(features)*1.2
+                            result_current[f"total_cost_{without}"] = optimal_value + schmelz_preis
+                            result_current['optimal_schrott_list'] = x_ann.tolist()
+                            result_current['elapsed_time'] = elapsed_time_ann
+                            ############# test strom ################
+                        else:
+                            optimal_value = objective(x_ann, constant_column, kreislauf_column, legierung_column)
+                            #print("objective value", optimal_value)
+                            result_current[f"total_cost_{without}"] = optimal_value
+                            result_current['optimal_schrott_list'] = x_ann.tolist()
+                            result_current['elapsed_time'] = elapsed_time_ann
+                            
+                        # if opt_result:
+                        #     if sum(objective_values.values()) < sum(opt_result[0]["objective_values"].values()):
+                        #         opt_result[0] = result_current
+                        # else:
+                        #     opt_result.append(result_current)
+                        
                         opt_result.append(result_current)
-                        # fremd_schrotte.to_csv(f"scrap_result_after_buy_{self.sim_settings.id}.csv")
-
-                    
-                    all_results.append(result_current)
-
-                    
-                    _data = {
-                        "optimierung_id": self.optimierung_id,
-                        "opt_result": opt_result,
-                    }
-                    
-                except Exception as e:
-                    print(f"Simulation:{self.sim_settings.id}- Exception Happened: The database is not updated. Please try again.")
-                    print(traceback.format_exc())
-                    
-                finally:
-                    with open(f'buy_list/buy_list_{self.sim_settings.id}.json', 'w') as f:
-                        json.dump(_data, f, indent=4)
+                        
+                        # _data_temp = {
+                        #     "optimierung_id": self.optimierung_id,
+                        #     "optimal_schrott_list": x_ann.tolist(),
+                        # }
+                        # with open(f'buy_test_1/buy_list_{i}.json', 'w') as f:
+                        #     json.dump(_data_temp, f, indent=4)
+                        
+                    except Exception as e:
+                        print(f"Simulation:{self.sim_settings.id}- Exception Happened: The database is not updated. Please try again.")
+                        print(traceback.format_exc())
+                    finally:
+                        _data = {
+                            "optimierung_id": self.optimierung_id,
+                            "opt_result": opt_result,
+                        }
+                        with open(f'buy_test/buy_list_{self.sim_settings.id}_0.001.json', 'w') as f:
+                            json.dump(_data, f, indent=4)
 
 
     def fremdschrott_chemi_table(self, df_chemi, fremd_schrotte_names,company_count):

@@ -103,64 +103,9 @@
         {
             "id": 1,
             "steel_type": "1.2379",
-            "total_quantity": 1000,
+            "total_quantity": 10000,
             "epochs": 100,
             "feature": 1
-        },
-        {
-            "id": 2,
-            "steel_type": "1.2379",
-            "total_quantity": 1000,
-            "epochs": 100,
-            "feature": 2
-        }
-        ,
-        {
-            "id": 3,
-            "steel_type": "1.2379",
-            "total_quantity": 1000,
-            "epochs": 100,
-            "feature": 3
-        }
-        ,
-        {
-            "id": 4,
-            "steel_type": "1.2379",
-            "total_quantity": 1000,
-            "epochs": 100,
-            "feature": 4
-        }
-        ,
-        {
-            "id": 5,
-            "steel_type": "1.2379",
-            "total_quantity": 1000,
-            "epochs": 100,
-            "feature": 5
-        }
-        ,
-        {
-            "id": 6,
-            "steel_type": "1.2379",
-            "total_quantity": 1000,
-            "epochs": 100,
-            "feature": 6
-        }
-        ,
-        {
-            "id": 7,
-            "steel_type": "1.2379",
-            "total_quantity": 1000,
-            "epochs": 100,
-            "feature": 7
-        }
-        ,
-        {
-            "id": 8,
-            "steel_type": "1.2379",
-            "total_quantity": 1000,
-            "epochs": 100,
-            "feature": 8
         }
     ]
 }

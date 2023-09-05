@@ -110,7 +110,7 @@ if __name__ == "__main__":
             counts[item-1] += 1
 
         axes[1].bar(range(core_count), counts)
-        plt.savefig(f"sim_output/simulation_output5.png")
+        plt.savefig(f"sim_output/simulation_output6.png")
         plt.show()
 
 
