@@ -354,13 +354,7 @@ class ScrapOptimization:
                         #     opt_result.append(result_current)
                         
                         opt_result.append(result_current)
-                        
-                        # _data_temp = {
-                        #     "optimierung_id": self.optimierung_id,
-                        #     "optimal_schrott_list": x_ann.tolist(),
-                        # }
-                        # with open(f'buy_test_1/buy_list_{i}.json', 'w') as f:
-                        #     json.dump(_data_temp, f, indent=4)
+
                         
                     except Exception as e:
                         print(f"Simulation:{self.sim_settings.id}- Exception Happened: The database is not updated. Please try again.")
