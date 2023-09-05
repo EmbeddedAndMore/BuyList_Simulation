@@ -105,7 +105,7 @@ class ScrapOptimization:
             t1 = np.dot(x, price_list)
             list_fremdschrotte = [sum(g) for g in list(grouper(x,company_count))]
             features = np.concatenate((constant_column, kreislauf_column, list_fremdschrotte, legierung_column))
-            t2 = f_xgb(features)*1.2
+            t2 = f_xgb(features)*0.4
             t3 = sum_t3_xgb(x)
             return (t1 + t2 + t3).item()
         
@@ -155,7 +155,7 @@ class ScrapOptimization:
             x = tf.convert_to_tensor(x, dtype=tf.float32)
             price_list_tf = tf.convert_to_tensor(price_list, dtype=tf.float32)
             t1 = tf.tensordot(x, price_list_tf,axes=1)
-            t2 = tf_ann(x,constant_column,kreislauf_column,legierung_column)*1.2
+            t2 = tf_ann(x,constant_column,kreislauf_column,legierung_column)*0.4
             t3 = sum_t3_tf(x)
             
             return t1 + t2 + t3
@@ -315,11 +315,6 @@ class ScrapOptimization:
                 ns.df_schrott = fremd_schrotte
                 violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
                 
-                # is_negative = any(ns.df_schrott["quantity"] < 0)  
-                # if is_negative:
-                #     fremd_schrotte = ns.df_schrott.copy()
-                #     fremd_schrotte.loc[fremd_schrotte["quantity"] < 0, "quantity"] = 0
-                #     ns.df_schrott = fremd_schrotte
                 
                 if violence > self.general_info.violation_threshold:
                     # return the message to the frontend
@@ -338,7 +333,7 @@ class ScrapOptimization:
                             ############# test strom ################
                             list_fremdschrotte = [sum(g) for g in list(grouper(x_ann,company_count))]
                             features = np.concatenate((constant_column, kreislauf_column, list_fremdschrotte, legierung_column))
-                            schmelz_preis = f_xgb(features)*1.2
+                            schmelz_preis = f_xgb(features)*0.4
                             result_current[f"total_cost_{without}"] = optimal_value + schmelz_preis
                             result_current['optimal_schrott_list'] = x_ann.tolist()
                             result_current['elapsed_time'] = elapsed_time_ann
@@ -375,7 +370,7 @@ class ScrapOptimization:
                             "optimierung_id": self.optimierung_id,
                             "opt_result": opt_result,
                         }
-                        with open(f'buy_test/buy_list_{self.sim_settings.id}.json', 'w') as f:
+                        with open(f'buy_test/buy_list_{self.sim_settings.id}_04.json', 'w') as f:
                             json.dump(_data, f, indent=4)
 
 
