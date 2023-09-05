@@ -113,7 +113,7 @@ class ScrapOptimization:
             t1 = np.dot(x, price_list)
             list_fremdschrotte = [sum(g) for g in list(grouper(x,company_count))]
             features = np.concatenate((constant_column, kreislauf_column, list_fremdschrotte, legierung_column))
-            t2 = f_xgb(features)*0.001
+            t2 = f_xgb(features)*0.0
             t3 = sum_t3_xgb(x)
             return (t1 + t2 + t3).item()
 
@@ -165,7 +165,7 @@ class ScrapOptimization:
             x = tf.convert_to_tensor(x, dtype=tf.float32)
             price_list_tf = tf.convert_to_tensor(price_list, dtype=tf.float32)
             t1 = tf.tensordot(x, price_list_tf,axes=1)
-            t2 = tf_ann(x,constant_column,kreislauf_column,legierung_column)*0.001
+            t2 = tf_ann(x,constant_column,kreislauf_column,legierung_column)*0.0
             t3 = sum_t3_tf(x)
             
             return t1 + t2 + t3
@@ -226,13 +226,16 @@ class ScrapOptimization:
             # Wrap the objective and gradient functions with lambda functions
             
             #wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
-            wrapped_grad_f_ann_tf = lambda x: grad_f_ann_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
+            #wrapped_grad_f_ann_tf = lambda x: grad_f_ann_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
             
             if without:
                 wrapped_objective_tf = lambda x: objective_tf_without_strom(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
+                wrapped_grad_f_ann_tf = None
 
             else:
-                wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)    
+                wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)  
+                wrapped_grad_f_ann_tf = lambda x: grad_f_ann_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
+  
 
 
             # Initialize the dictionary to store the objective function values
@@ -253,7 +256,7 @@ class ScrapOptimization:
             c_violation = (np.dot(aeq, result.x) - beq).tolist()
             
             elapsed_time = end - start
-            return np.rint(result.x), result.fun, c_violation, elapsed_time, objective_values
+            return np.rint(result.x), result.fun, c_violation, elapsed_time, objective_values, result.jac
         
         ############################## Opt Running ##############################
         opt_result = []
@@ -299,7 +302,7 @@ class ScrapOptimization:
 
 
                 # then we optimize the problem again
-                x_ann, _, c_violation_ann, elapsed_time_ann, _ = optimize_grad(constant_column, kreislauf_column, legierung_column,
+                x_ann, _, c_violation_ann, elapsed_time_ann, _ , jac = optimize_grad(constant_column, kreislauf_column, legierung_column,
                                                                                                     beq, x_start, constraints, bounds,  without=without)
                 print("################### original fremd schrotte ###################")
                 print(ns.df_schrott["quantity"].to_list())
@@ -339,6 +342,7 @@ class ScrapOptimization:
                             result_current[f"total_cost_{without}"] = optimal_value + schmelz_preis
                             result_current['optimal_schrott_list'] = x_ann.tolist()
                             result_current['elapsed_time'] = elapsed_time_ann
+                            result_current['jac'] = jac.tolist()
                             ############# test strom ################
                         else:
                             optimal_value = objective(x_ann, constant_column, kreislauf_column, legierung_column)
@@ -346,6 +350,7 @@ class ScrapOptimization:
                             result_current[f"total_cost_{without}"] = optimal_value
                             result_current['optimal_schrott_list'] = x_ann.tolist()
                             result_current['elapsed_time'] = elapsed_time_ann
+                            result_current['jac'] = jac.tolist()
                             
                         # if opt_result:
                         #     if sum(objective_values.values()) < sum(opt_result[0]["objective_values"].values()):
@@ -370,7 +375,7 @@ class ScrapOptimization:
                             "optimierung_id": self.optimierung_id,
                             "opt_result": opt_result,
                         }
-                        with open(f'buy_test/buy_list_{self.sim_settings.id}_0.001.json', 'w') as f:
+                        with open(f'buy_test/buy_list_{self.sim_settings.id}.json', 'w') as f:
                             json.dump(_data, f, indent=4)
 
 
