@@ -14,7 +14,7 @@ from joblib import Parallel, delayed
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
-from scrap_optimization import ScrapOptimization
+from scrap_optimization_xgboost import ScrapOptimization
 
 
 class GeneralInfo(BaseModel):
@@ -30,11 +30,9 @@ class GeneralInfo(BaseModel):
 class SimulationInfo(BaseModel):
     id: int
     steel_type: str
-    total_quantity:int
-    epochs: int
+    total_quantity:int = np.random.randint(5000, 7000)
+    epochs: int = np.random.randint(4, 15)
     feature: int
-    # def steel_type(self):
-    #     return self.steel_type_const
 
 class Settings(BaseSettings):
     general_info:GeneralInfo
@@ -49,10 +47,6 @@ df_schrott = pd.read_csv(general_info.scrap_dataset)
 df_schrott = df_schrott[df_schrott["name"].str.startswith("F")]
 global_lock = multiprocessing.Lock()
 
-# physical_devices = tf.config.list_physical_devices('CPU') 
-# for device in physical_devices:
-#     tf.config.experimental.set_memory_growth(device, True)
-
 
 def run_simulation(simulation):
     simulation_settings,df_schrott,supplier_quantity_hist, sim_id_hist = simulation
@@ -65,6 +59,11 @@ def run_simulation(simulation):
         chemies = chemies[['C','Si','Mn','Cr','Mo','V']].values
         chemi_component = [float(i) for i in chemies[0]] 
         print(f"Running optimization for id:{simulation_settings.id}")
+                
+        #simulation_settings.total_quantity = np.random.randint(5000, 7000)
+        simulation_settings.total_quantity = 5511
+        print(f"The toal quantity is {simulation_settings.total_quantity}")
+
         so.optimize(simulation_settings.total_quantity, chemi_component, simulation_settings.steel_type, df_schrott, supplier_quantity_hist,sim_id_hist)
         global_lock.release()
     except Exception as e:
@@ -74,7 +73,6 @@ def run_simulation(simulation):
 
 
 if __name__ == "__main__":
-    # # print(settings)
     with multiprocessing.Manager() as manager:
         # lock = manager.Lock()
         supplier_quantity_hist = manager.list()
