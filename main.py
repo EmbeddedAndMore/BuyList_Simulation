@@ -12,9 +12,8 @@ import matplotlib.pyplot as plt
 from pydantic import BaseSettings, BaseModel
 from joblib import Parallel, delayed
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
-from scrap_optimization_xgboost import ScrapOptimization
+from scrap_optimization_test import ScrapOptimization
 
 
 class GeneralInfo(BaseModel):

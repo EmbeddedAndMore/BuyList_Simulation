@@ -99,13 +99,22 @@ class ScrapOptimization:
                 else:
                     summe += 100.0
                 return summe
-
+        
+        # TODO:
+        # 1. to test:  the last one is strom_price, different visualizations
+        # [30, 80, 100, 0.5]
+        # [50, 100, 100, 0.6] 
+        
+        # 2. once the some quantity is equal to zeros, and add it in sometimes later 
+        # foundry should be between 4-8, and visualization too
+        
+        
         # objective xgboost: the total cost of the optimization problem
-        def objective(x, constant_column, kreislauf_column, legierung_column):
+        def objective(x, constant_column, kreislauf_column, legierung_column, strom_price):
             t1 = np.dot(x, price_list)
             list_fremdschrotte = [sum(g) for g in list(grouper(x,company_count))]
             features = np.concatenate((constant_column, kreislauf_column, list_fremdschrotte, legierung_column))
-            t2 = f_xgb(features)*0.4
+            t2 = f_xgb(features)*strom_price
             t3 = sum_t3_xgb(x)
             #return (t1 + t2 + t3).item()
             return (t1+t3).item(), t2
@@ -144,11 +153,11 @@ class ScrapOptimization:
 
         # function for calculate the total cost, tf version
         @tf.function
-        def objective_tf(x,constant_column,kreislauf_column,legierung_column):
+        def objective_tf(x,constant_column,kreislauf_column,legierung_column, strom_price):
             x = tf.convert_to_tensor(x, dtype=tf.float32)
             price_list_tf = tf.convert_to_tensor(price_list, dtype=tf.float32)
             t1 = tf.tensordot(x, price_list_tf,axes=1)
-            t2 = tf_ann(x,constant_column,kreislauf_column,legierung_column)*0.4
+            t2 = tf_ann(x,constant_column,kreislauf_column,legierung_column)*strom_price
             t3 = sum_t3_tf(x)
             
             return t1 + t2 + t3
@@ -205,7 +214,7 @@ class ScrapOptimization:
             return res_pdfo.x, res_pdfo.fun, c_violation, elapsed_time_pdfo, res_pdfo.method
 
         
-        def optimize_grad(constant_column, kreislauf_column, legierung_column, beq, x_start,constraints, bounds, without=False):
+        def optimize_grad(constant_column, kreislauf_column, legierung_column, beq, x_start,constraints, bounds):
             # Wrap the objective and gradient functions with lambda functions
             
             #wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
