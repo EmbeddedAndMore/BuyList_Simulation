@@ -60,9 +60,7 @@ def run_simulation(simulation):
         chemi_component = [float(i) for i in chemies[0]] 
         print(f"Running optimization for id:{simulation_settings.id}")
                 
-        #simulation_settings.total_quantity = np.random.randint(5000, 7000)
-        simulation_settings.total_quantity = 5511
-        print(f"The toal quantity is {simulation_settings.total_quantity}")
+        simulation_settings.total_quantity = np.random.randint(5000, 7000)
 
         so.optimize(simulation_settings.total_quantity, chemi_component, simulation_settings.steel_type, df_schrott, supplier_quantity_hist,sim_id_hist)
         global_lock.release()
