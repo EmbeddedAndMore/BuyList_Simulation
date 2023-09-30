@@ -217,18 +217,8 @@ class ScrapOptimization:
         def optimize_grad(constant_column, kreislauf_column, legierung_column, beq, x_start,constraints, bounds):
             # Wrap the objective and gradient functions with lambda functions
             
-            #wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
-            #wrapped_grad_f_ann_tf = lambda x: grad_f_ann_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
-            
-            if without:
-                wrapped_objective_tf = lambda x: objective_tf_without_strom(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
-                wrapped_grad_f_ann_tf = None
-
-            else:
-                wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)  
-                wrapped_grad_f_ann_tf = lambda x: grad_f_ann_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
-  
-
+            wrapped_objective_tf = lambda x: objective_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
+            wrapped_grad_f_ann_tf = lambda x: grad_f_ann_tf(x.astype(np.float32), constant_column, kreislauf_column, legierung_column)
 
             # Initialize the dictionary to store the objective function values
             objective_values = {}
@@ -287,7 +277,7 @@ class ScrapOptimization:
                     bounds.ub[bounds_index] = 1.
                     
             
-            x_ann, _, c_violation_ann, elapsed_time_ann, _  = optimize_grad(constant_column,kreislauf_column, legierung_column,beq, x_start, constraints, bounds,  without=without)
+            x_ann, _, c_violation_ann, elapsed_time_ann, _  = optimize_grad(constant_column,kreislauf_column, legierung_column,beq, x_start, constraints, bounds)
             print("################### original fremd schrotte ###################")
             print(ns.df_schrott["quantity"].to_list())
             # substract the optimal schrott list from the total quantity

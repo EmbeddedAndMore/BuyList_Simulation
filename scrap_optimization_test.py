@@ -305,7 +305,7 @@ class ScrapOptimization:
                     bounds.ub[bounds_index] = 1.
                     
             
-            x_ann, _, c_violation_ann, elapsed_time_ann, _  = optimize_grad(constant_column,kreislauf_column, legierung_column,beq, x_start, constraints, bounds,  without=without)
+            x_ann, _, c_violation_ann, elapsed_time_ann, _  = optimize_grad(constant_column,kreislauf_column, legierung_column,beq, x_start, constraints, bounds)
             print("################### original fremd schrotte ###################")
             print(ns.df_schrott["quantity"].to_list())
             # substract the optimal schrott list from the total quantity
