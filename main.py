@@ -3,18 +3,25 @@ from multiprocessing import Pool
 import traceback
 import os
 import pickle
-
+import time
+import random
+import json
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import multiprocessing
 import matplotlib.pyplot as plt
-from pydantic import BaseSettings, BaseModel
+from pydantic import BaseSettings, BaseModel, validator
 from joblib import Parallel, delayed
 
 
 from scrap_optimization_test import ScrapOptimization
 
+
+def my_fact(x):
+    print(x)
+    return x
 
 class GeneralInfo(BaseModel):
     features:list
@@ -25,6 +32,20 @@ class GeneralInfo(BaseModel):
     chemi_dataset:str
     ML_MODELS:str
     violation_threshold:float
+    electricity_price:float
+    transport_coefficents:list[float]
+    comeback_epoches:int # after how many epoches add comeback_value
+    comeback_value:int
+
+
+    @validator("electricity_price", pre=True)
+    def random_select_electricity_prices(cls, v):
+        return random.choice(v)
+    
+    @validator("transport_coefficents", pre=True)
+    def random_select_transport_coefficents(cls, v):
+        return random.choice(v)
+
 
 class SimulationInfo(BaseModel):
     id: int
@@ -46,12 +67,18 @@ df_schrott = pd.read_csv(general_info.scrap_dataset)
 df_schrott = df_schrott[df_schrott["name"].str.startswith("F")]
 global_lock = multiprocessing.Lock()
 
+report_dir_name = time.strftime("%Y%m%d-%H%M%S")
+report_dir = f"sim_output/{report_dir_name}"
+
+general_info.electricity_price=0.6
+general_info.transport_coefficents = [30.0,60.0,70.0]
+
 
 def run_simulation(simulation):
     simulation_settings,df_schrott,supplier_quantity_hist, sim_id_hist = simulation
 
     try: 
-        global_lock.acquire()
+        # global_lock.acquire()
         so= ScrapOptimization(general_info, simulation_settings)
         steel_chemi_df = pd.read_csv("assets/steel_chemi_components.csv")
         chemies = steel_chemi_df.loc[steel_chemi_df["name"] == float(simulation_settings.steel_type)]
@@ -62,7 +89,7 @@ def run_simulation(simulation):
         simulation_settings.total_quantity = np.random.randint(5000, 7000)
 
         so.optimize(simulation_settings.total_quantity, chemi_component, simulation_settings.steel_type, df_schrott, supplier_quantity_hist,sim_id_hist)
-        global_lock.release()
+        # global_lock.release()
     except Exception as e:
         print("Error:")
         print(e)
@@ -70,6 +97,16 @@ def run_simulation(simulation):
 
 
 if __name__ == "__main__":
+    Path(report_dir).mkdir(parents=True, exist_ok=True)
+    with open(f"{report_dir}/settings.json", "w") as f:
+        data ={
+            "scrap_dataset":general_info.scrap_dataset,
+            "violation_threshold":general_info.violation_threshold,
+            "electricity_price": general_info.electricity_price,
+            "transport_coefficient": general_info.transport_coefficents
+        }
+        json.dump(data,f,indent=4)
+    
     with multiprocessing.Manager() as manager:
         # lock = manager.Lock()
         supplier_quantity_hist = manager.list()
@@ -105,7 +142,8 @@ if __name__ == "__main__":
             counts[item-1] += 1
 
         axes[1].bar(range(core_count), counts)
-        plt.savefig(f"sim_output/simulation_output6.png")
+        
+        plt.savefig(f"{report_dir}/simulation_output6.png")
         plt.show()
 
 
