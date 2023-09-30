@@ -1,0 +1,8 @@
+{
+    "electricity_price": 0.6,
+    "transport_coefficient": [
+        30.0,
+        60.0,
+        70.0
+    ]
+}

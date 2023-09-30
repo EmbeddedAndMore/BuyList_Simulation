@@ -91,13 +91,14 @@ class ScrapOptimization:
             summe = 0
             # quantity = np.array([sum(g) for g in list(grouper(x,company_count))])
             quantity = np.array([sum(x[i::company_count]) for i in range(len(x) // company_count)])
+            coeffs = self.general_info.transport_coefficents
             for q in quantity:
-                if q <= 50.0:   # 50 hear is x1
+                if q <= coeffs[0]:   # 50 hear is x1
                     summe += 0.0
-                elif q > 50.0 and q <= 100.0:  # 100 here is x2
-                    summe += 2.5 * (q-50) # 50 here is x1
+                elif q > coeffs[0] and q <= coeffs[1]:  # 100 here is x2
+                    summe += 2.5 * (q-coeffs[0]) # 50 here is x1
                 else:
-                    summe += 100.0   # 100 here is x3
+                    summe += coeffs[2]   # 100 here is x3
                 return summe
         
         # TODO:
@@ -128,11 +129,11 @@ class ScrapOptimization:
         
         
         # objective xgboost: the total cost of the optimization problem
-        def objective(x, constant_column, kreislauf_column, legierung_column, strom_price):
+        def objective(x, constant_column, kreislauf_column, legierung_column):
             t1 = np.dot(x, price_list)
             list_fremdschrotte = [sum(g) for g in list(grouper(x,company_count))]
             features = np.concatenate((constant_column, kreislauf_column, list_fremdschrotte, legierung_column))
-            t2 = f_xgb(features)*strom_price
+            t2 = f_xgb(features)*self.general_info.electricity_price
             t3 = sum_t3_xgb(x)
             #return (t1 + t2 + t3).item()
             return (t1+t3).item(), t2
@@ -160,22 +161,23 @@ class ScrapOptimization:
             summe = tf.constant(0.0, dtype=tf.float32)
             #quantity = tf.reduce_sum(tf.reshape(x,[-1,company_count]), axis=1) 
             quantity = [tf.reduce_sum(tf.gather(x, range(i, len(x), company_count))) for i in range(len(x) // company_count)]
+            coeffs = self.general_info.transport_coefficents
             for q in quantity:
                 q = tf.reshape(q, ())
-                summe += tf.cond(q <= 50.0, 
+                summe += tf.cond(q <= coeffs[0], 
                                 lambda: 0.0, 
-                                lambda: tf.cond(q > 50.0 and q <= 100.0, 
-                                                lambda: 2.5 * (q - 50), 
-                                                lambda: 100.0))
+                                lambda: tf.cond(q > coeffs[0] and q <= coeffs[1], 
+                                                lambda: 2.5 * (q - coeffs[0]), 
+                                                lambda: coeffs[2]))
             return summe
 
         # function for calculate the total cost, tf version
         @tf.function
-        def objective_tf(x,constant_column,kreislauf_column,legierung_column, strom_price):
+        def objective_tf(x,constant_column,kreislauf_column,legierung_column):
             x = tf.convert_to_tensor(x, dtype=tf.float32)
             price_list_tf = tf.convert_to_tensor(price_list, dtype=tf.float32)
             t1 = tf.tensordot(x, price_list_tf,axes=1)
-            t2 = tf_ann(x,constant_column,kreislauf_column,legierung_column)*strom_price
+            t2 = tf_ann(x,constant_column,kreislauf_column,legierung_column) * self.general_info.electricity_price
             t3 = sum_t3_tf(x)
             
             return t1 + t2 + t3
