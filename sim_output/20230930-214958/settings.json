@@ -1,8 +1,0 @@
-{
-    "electricity_price": 1.0,
-    "transport_coefficient": [
-        50.0,
-        100.0,
-        100.0
-    ]
-}
