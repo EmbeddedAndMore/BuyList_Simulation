@@ -70,8 +70,8 @@ global_lock = multiprocessing.Lock()
 report_dir_name = time.strftime("%Y%m%d-%H%M%S")
 report_dir = f"sim_output/{report_dir_name}"
 
-# general_info.electricity_price=0.6
-# general_info.transport_coefficents = [30.0,60.0,70.0]
+general_info.electricity_price=0.6
+general_info.transport_coefficents = [30.0,60.0,70.0]
 
 
 def run_simulation(simulation):
@@ -103,16 +103,24 @@ if __name__ == "__main__":
             "scrap_dataset":general_info.scrap_dataset,
             "violation_threshold":general_info.violation_threshold,
             "electricity_price": general_info.electricity_price,
-            "transport_coefficient": general_info.transport_coefficents
+            "transport_coefficient": general_info.transport_coefficents,
+            "comeback_epoche": general_info.comeback_epoches,
+            "comeback_value": general_info.comeback_value,
         }
         json.dump(data,f,indent=4)
-    
+    initial_df_schrott = df_schrott.copy()
     with multiprocessing.Manager() as manager:
         # lock = manager.Lock()
         supplier_quantity_hist = manager.list()
         sim_id_hist = manager.list()
+
         ns = manager.Namespace()
         ns.df_schrott = df_schrott
+        ns.comeback_value = settings.general_info.comeback_value
+        nonzero_quantities = ns.df_schrott["quantity"].to_numpy().nonzero()[0].tolist()
+        print("Nonzero indices: ", nonzero_quantities)
+        comeback_info = {index: (settings.general_info.comeback_epoches, True) for index in nonzero_quantities}
+        ns.comeback_info = comeback_info
 
         simulations = [(item, ns, supplier_quantity_hist, sim_id_hist) for item in simulations]
         supplier_quantity_hist.append(ns.df_schrott["quantity"].to_list())
@@ -145,6 +153,14 @@ if __name__ == "__main__":
         
         plt.savefig(f"{report_dir}/simulation_output6.png")
         plt.show()
+
+        counter = [0] * 10
+        for idx, item in enumerate(initial_df_schrott["quantity"]):
+            if item != ns.df_schrott["quantity"][idx]:
+                counter_idx = idx % 10
+                counter[counter_idx] += 1
+
+        print(f"{np.count_nonzero(np.array(counter))} supplier used!")
 
 
         

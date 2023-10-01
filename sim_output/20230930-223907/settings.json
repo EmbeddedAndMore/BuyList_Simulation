@@ -1,0 +1,10 @@
+{
+    "scrap_dataset": "assets/scrap_3.csv",
+    "violation_threshold": 0.2,
+    "electricity_price": 0.6,
+    "transport_coefficient": [
+        30.0,
+        60.0,
+        70.0
+    ]
+}
