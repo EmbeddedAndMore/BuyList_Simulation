@@ -317,11 +317,35 @@ class ScrapOptimization:
             fremd_schrotte = ns.df_schrott.copy()
             subs = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
 
-            if subs[0] == 0:
-                print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-                print(f"Index {0} became zero in epoch {i}")
-                print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-                subs[0] += 1000
+            comeback_info = ns.comeback_info
+            for idx, val in enumerate(subs):
+                if val <= 0:
+                    if idx in comeback_info:
+                        comeback_epoches, should_comeback = comeback_info[idx]
+                        if comeback_epoches > 0:
+                            comeback_epoches -= 1
+
+                            if comeback_epoches == 0 and should_comeback:
+                                should_comeback = False
+                                subs[idx] += ns.comeback_value
+
+                            comeback_info[idx] = (comeback_epoches, should_comeback)
+
+            ns.comeback_info = comeback_info
+                    
+            # if subs[0] <= 0:
+            #     print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+            #     print(f"Index {0} became zero in epoch {i}")
+                
+            #     if ns.comeback_epoche > 0 :
+            #         ns.comeback_epoche -= 1
+            #         print("NS Epoche: ", ns.comeback_epoche, ns.should_comeback)
+
+            #     if ns.comeback_epoche == 0 and ns.should_comeback:
+            #         ns.should_comeback = False
+            #         subs[0] += ns.comeback_value
+
+            #     print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
             fremd_schrotte["quantity"] = subs
             ns.df_schrott = fremd_schrotte
