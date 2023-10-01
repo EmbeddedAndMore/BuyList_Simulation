@@ -97,7 +97,7 @@
         "scrap_dataset": "assets/scrap_3.csv",
         "chemi_dataset": "assets/chemi.csv",
         "ML_MODELS": "ml_models",
-        "violation_threshold": 0.2,
+        "violation_threshold": 0.3,
         "electricity_price":[0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2],
         "transport_coefficents":[[30, 60, 70],[35, 65, 75],[40, 70, 80],[45, 75, 85],[50, 80, 90],[55, 80, 95],[60, 90, 100],[50, 100, 100]],
         "comeback_epoches": 3,
@@ -106,6 +106,12 @@
     "simulations": [
         {
             "id": 1,
+            "steel_type": "1.2379",
+            "total_quantity": 10000,
+            "epochs": 100,
+            "feature": 1
+        },{
+            "id": 2,
             "steel_type": "1.2379",
             "total_quantity": 10000,
             "epochs": 100,

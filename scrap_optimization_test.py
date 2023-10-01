@@ -313,16 +313,27 @@ class ScrapOptimization:
             # substract the optimal schrott list from the total quantity
             print("############### ANN result #################", x_ann)
             # fremd_schrotte.loc[:, "quantity"] = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
+            prev_epoch_vals = ns.df_schrott.copy().loc[:,"quantity"]
             fremd_schrotte = ns.df_schrott.copy()
             subs = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
+
+            if subs[0] == 0:
+                print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+                print(f"Index {0} became zero in epoch {i}")
+                print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+                subs[0] += 1000
+
             fremd_schrotte["quantity"] = subs
             ns.df_schrott = fremd_schrotte
             violence = np.sum(np.abs(c_violation_ann)) / np.sum(beq)
+
+
+            
             
             
             if violence > self.general_info.violation_threshold:
                 # return the message to the frontend
-                _data = f"Simulation:{self.sim_settings.id}- violation is more than threshold:  {violence}{self.general_info.  violation_threshold}. Please try again."
+                _data = f"Simulation:{self.sim_settings.id}- violation is more than threshold:  {violence} - {self.general_info.violation_threshold}. Please try again."
                 # terminate the optimization process
                 print(_data)
                 return
