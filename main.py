@@ -70,8 +70,8 @@ global_lock = multiprocessing.Lock()
 report_dir_name = time.strftime("%Y%m%d-%H%M%S")
 report_dir = f"sim_output/{report_dir_name}"
 
-general_info.electricity_price=0.6
-general_info.transport_coefficents = [30.0,60.0,70.0]
+general_info.electricity_price=0.4
+general_info.transport_coefficents = [30.0,60.0,80.0]
 
 
 def run_simulation(simulation):
@@ -87,6 +87,8 @@ def run_simulation(simulation):
         print(f"Running optimization for id:{simulation_settings.id}")
                 
         simulation_settings.total_quantity = np.random.randint(5000, 7000)
+        
+        print("simulation_settings.total_quantity: ",simulation_settings.total_quantity)
 
         so.optimize(simulation_settings.total_quantity, chemi_component, simulation_settings.steel_type, df_schrott, supplier_quantity_hist,sim_id_hist)
         # global_lock.release()
@@ -131,6 +133,12 @@ if __name__ == "__main__":
         print("len(supplier_quantity_hist): ",len(supplier_quantity_hist))
         all_hist = np.empty(shape=(0,len(supplier_quantity_hist)))
         fig, axes = plt.subplots(1,2, figsize=(15, 7))
+        # Adding labels to the axes
+        axes[0].set_xlabel("Total Request")
+        axes[0].set_ylabel("Quantity")
+        axes[1].set_xlabel("Foundry")
+        axes[1].set_ylabel("Request")
+            
         for idx, remote_scrap in enumerate(supplier_quantity_hist[0]):
             values = []
             for i in range(len(supplier_quantity_hist)):
@@ -151,7 +159,7 @@ if __name__ == "__main__":
 
         axes[1].bar(range(core_count), counts)
         
-        plt.savefig(f"{report_dir}/simulation_output6.png")
+        plt.savefig(f"{report_dir}/simulation_output.png")
         plt.show()
 
         counter = [0] * 10

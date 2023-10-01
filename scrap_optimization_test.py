@@ -99,7 +99,7 @@ class ScrapOptimization:
                     summe += 2.5 * (q-coeffs[0]) # 50 here is x1
                 else:
                     summe += coeffs[2]   # 100 here is x3
-                return summe
+            return summe
         
         # TODO:
         # 1. to test:  the last one is strom_price, different visualizations 
@@ -280,7 +280,8 @@ class ScrapOptimization:
             return equality_fun_zero
         
         
-        for i in range(self.sim_settings.epochs):
+        #for i in range(self.sim_settings.epochs):
+        for i in range(np.random.randint(10,15)):
 
             constant_column, kreislauf_column, legierung_column, chemi_to_achieve_fremdschrotte = self.calculate_chemi_component(df, df_chemi, constant_features_names,kreislauf_schrotte_names,legierung_schrotte_names,fremd_schrotte_names,total_chemi_to_achieve)
             
@@ -390,7 +391,7 @@ class ScrapOptimization:
                         "optimierung_id": self.optimierung_id,
                         "opt_result": opt_result,
                     }
-                    with open(f'buy_test/buy_list_{self.sim_settings.id}.json', 'w') as f:
+                    with open(f'buy_test/buy_list_{self.sim_settings.id}_30_60_80.json', 'w') as f:
                         json.dump(_data, f, indent=4)
 
 
