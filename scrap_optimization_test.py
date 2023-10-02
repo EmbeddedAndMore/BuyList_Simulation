@@ -318,6 +318,9 @@ class ScrapOptimization:
             fremd_schrotte = ns.df_schrott.copy()
             subs = fremd_schrotte.loc[:,"quantity"].sub(x_ann)
 
+
+            subs = subs.clip(lower=0)
+
             comeback_info = ns.comeback_info
             for idx, val in enumerate(subs):
                 if val <= 0:

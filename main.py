@@ -70,8 +70,13 @@ global_lock = multiprocessing.Lock()
 report_dir_name = time.strftime("%Y%m%d-%H%M%S")
 report_dir = f"sim_output/{report_dir_name}"
 
+<<<<<<< Updated upstream
 general_info.electricity_price=0.4
 general_info.transport_coefficents = [30.0,60.0,80.0]
+=======
+# general_info.electricity_price=0.6
+# general_info.transport_coefficents = [30.0,60.0,70.0]
+>>>>>>> Stashed changes
 
 
 def run_simulation(simulation):
